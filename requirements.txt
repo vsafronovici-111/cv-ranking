@@ -1,0 +1,4 @@
+# Core app has no mandatory third-party dependencies.
+# Optional: install for better PDF support.
+# pypdf>=4.0.0
+

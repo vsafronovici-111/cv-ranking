@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-agent-cv-rank"
+version = "0.1.0"
+description = "Rank CVs against job requirements using Ollama (qwen3:14b)."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Local User" }]
+dependencies = []
+
+[project.optional-dependencies]
+pdf = ["pypdf>=4.0.0"]
+
+[project.scripts]
+cv-ranker = "cv_ranker.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

@@ -1,0 +1,2 @@
+[console_scripts]
+cv-ranker = cv_ranker.cli:main
