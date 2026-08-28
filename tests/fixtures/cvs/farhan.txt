@@ -1,0 +1,10 @@
+Farhan Ali
+Fullstack Developer (Java + Angular)
+
+Experience:
+- 5 years of fullstack development experience
+- Backend: Java, Spring Boot, Kafka, MySQL
+- Frontend: Angular, RxJS, TypeScript
+- Built internal admin tools and customer-facing portals
+- Experience with CI/CD pipelines using Jenkins
+

@@ -1,0 +1,10 @@
+Elena Petrova
+Fullstack Developer (Java + React)
+
+Experience:
+- 6 years of fullstack software development
+- Backend: Java, Spring Boot, REST APIs, PostgreSQL
+- Frontend: React, Redux, TypeScript
+- Deployed microservices with Docker and Kubernetes
+- Worked in Agile/Scrum teams delivering end-to-end features
+

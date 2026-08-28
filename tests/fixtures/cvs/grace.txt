@@ -1,0 +1,12 @@
+Grace Oduya
+Fullstack Developer (Node.js + React)
+
+Experience:
+- 5 years of fullstack JS development
+- Backend: Node.js, Express, MongoDB, REST and GraphQL APIs
+- Frontend: React, Redux, TypeScript
+- Built real-time features using WebSockets and Socket.IO
+- Deployed applications on AWS (EC2, Lambda, S3)
+
+
+

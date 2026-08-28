@@ -1,0 +1,11 @@
+Derek Nguyen
+Frontend Web Developer (React Specialist)
+
+Experience:
+- 4 years of frontend development experience
+- Deep expertise in React, Hooks, Context API, and Redux Toolkit
+- Built component libraries and design systems in React with TypeScript
+- Testing with Jest and React Testing Library
+- Focused exclusively on the React ecosystem throughout career
+
+

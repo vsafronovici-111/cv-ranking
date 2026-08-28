@@ -1,0 +1,10 @@
+Carla Mendes
+Frontend Web Developer (React & Angular)
+
+Experience:
+- 6 years of frontend web development experience
+- Extensive work with React, Redux, and React Router building SPAs
+- Also built enterprise dashboards using Angular and RxJS
+- Strong in TypeScript, HTML5, CSS3, and responsive design
+- Collaborated with backend teams via REST APIs
+
