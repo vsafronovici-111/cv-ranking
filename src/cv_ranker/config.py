@@ -1,0 +1,108 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Project root: src/cv_ranker/config.py -> src/cv_ranker -> src -> <repo root>
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_CONFIG_DIR = _REPO_ROOT / "config"
+
+
+class LLMSettings(BaseSettings):
+    """Resolved LLM connection settings for a given environment.
+
+    Values are resolved by pydantic-settings in this priority order:
+    1. Explicit constructor kwargs (not used here)
+    2. Environment variables (e.g. `CV_RANKER_BASE_URL`)
+    3. The matching `config/<env>.env` dotenv file, if present
+    4. The field defaults declared on the subclass below
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    base_url: str
+    api_key: str
+    model: str
+    timeout_seconds: int
+
+
+class LocalLLMSettings(LLMSettings):
+    """Local development defaults: Ollama's OpenAI-compatible API at /v1.
+
+    https://github.com/ollama/ollama/blob/main/docs/openai.md
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_",
+        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    base_url: str = "http://localhost:11434/v1"
+    api_key: str = "ollama"  # Ollama ignores the key; the OpenAI SDK requires a non-empty value.
+    model: str = "qwen3:14b"
+    timeout_seconds: int = 90
+
+
+class ProdLLMSettings(LLMSettings):
+    """Production defaults: vLLM's OpenAI-compatible server.
+
+    https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_",
+        env_file=str(_CONFIG_DIR / "prod.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    base_url: str = "http://localhost:8000/v1"
+    api_key: str = "EMPTY"
+    model: str = "Qwen/Qwen3-14B"
+    timeout_seconds: int = 120
+
+
+_SETTINGS_CLASS_BY_ENV: dict[str, type[LLMSettings]] = {
+    "local": LocalLLMSettings,
+    "prod": ProdLLMSettings,
+}
+
+
+def load_llm_settings(env_name: str | None = None) -> LLMSettings:
+    """Resolve LLM settings for the requested environment.
+
+    Resolution order for which environment to use:
+    1. Explicit `env_name` argument (e.g., from a CLI flag)
+    2. `CV_RANKER_ENV` environment variable
+    3. Falls back to "local"
+
+    For the chosen environment, individual fields can still be overridden via:
+    - CV_RANKER_BASE_URL
+    - CV_RANKER_API_KEY
+    - CV_RANKER_MODEL
+    - CV_RANKER_TIMEOUT_SECONDS
+
+    ...or by editing `config/local.env` / `config/prod.env` (see the
+    `.env.example` templates in `config/`).
+
+    This lets you keep `local` as the safe default for everyday development
+    (pointing at Ollama) while switching to `prod` (vLLM) via config/env vars
+    without touching application code.
+    """
+    resolved_env = (env_name or os.environ.get("CV_RANKER_ENV") or "local").strip().lower()
+
+    settings_cls = _SETTINGS_CLASS_BY_ENV.get(resolved_env)
+    if settings_cls is None:
+        valid = ", ".join(sorted(_SETTINGS_CLASS_BY_ENV))
+        raise ValueError(f"Unknown environment '{resolved_env}'. Expected one of: {valid}.")
+
+    return settings_cls()

@@ -13,7 +13,7 @@ if __name__ == "__main__":
         "Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis"
     )
 
-    ranker = CVRanker(ollama_client=None)
+    ranker = CVRanker(llm_client=None)
     results = ranker.rank_folder(cv_folder, RankConfig(requirements=requirements, mode="heuristic"))
 
     for result in results:

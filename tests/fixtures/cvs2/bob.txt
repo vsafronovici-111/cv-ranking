@@ -1,0 +1,8 @@
+Bob Smith
+Software Developer
+
+Experience:
+- 2 years of development experience
+- Worked mostly with JavaScript, React, and Node.js
+- Familiar with MySQL
+

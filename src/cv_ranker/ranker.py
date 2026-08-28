@@ -37,8 +37,8 @@ class RankConfig:
 
 
 class CVRanker:
-    def __init__(self, ollama_client: OllamaClient | None = None):
-        self.ollama_client = ollama_client
+    def __init__(self, llm_client: LLMClient | None = None):
+        self.llm_client = llm_client
 
     def rank_folder(self, folder: Path, config: RankConfig) -> list[CandidateScore]:
         if not folder.exists() or not folder.is_dir():
@@ -65,12 +65,12 @@ class CVRanker:
                 warnings=warnings,
             )
 
-        if config.mode in {"auto", "llm"} and self.ollama_client:
+        if config.mode in {"auto", "llm"} and self.llm_client:
             try:
                 llm_score = self._score_with_llm(filename, cv_text, config.requirements)
                 llm_score.warnings.extend(warnings)
                 return llm_score
-            except (OllamaClientError, ValueError) as exc:
+            except (LLMClientError, ValueError) as exc:
                 if config.mode == "llm":
                     return CandidateScore(
                         filename=filename,
@@ -93,8 +93,8 @@ class CVRanker:
             "Return strict JSON only."
         )
 
-        assert self.ollama_client is not None
-        response = self.ollama_client.generate(prompt=prompt, system=SYSTEM_PROMPT)
+        assert self.llm_client is not None
+        response = self.llm_client.generate(prompt=prompt, system=SYSTEM_PROMPT)
         data = _parse_json_from_response(response)
 
         score = _clamp_score(data.get("score", 0))

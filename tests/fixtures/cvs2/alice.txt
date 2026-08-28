@@ -1,0 +1,8 @@
+Alice Johnson
+Senior Backend Engineer
+
+Experience:
+- 7 years of software engineering experience
+- Built event-driven services with Java, Spring Boot, Kafka
+- Worked with PostgreSQL, MongoDB, and Redis
+

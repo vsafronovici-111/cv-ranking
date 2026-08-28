@@ -1,4 +1,9 @@
-# Core app has no mandatory third-party dependencies.
+# Core dependency: OpenAI-compatible client, works with both Ollama and vLLM.
+openai>=1.30.0
+
+# Core dependency: typed, env/dotenv-driven configuration.
+pydantic-settings>=2.0.0
+
 # Optional: install for better PDF support.
 # pypdf>=4.0.0
 

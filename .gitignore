@@ -7,3 +7,8 @@
 .venv/
 **/.venv/
 
+# Local secrets/config (keep the .env.example templates tracked)
+config/local.env
+config/prod.env
+
+
