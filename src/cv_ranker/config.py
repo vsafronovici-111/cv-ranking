@@ -71,6 +71,42 @@ class ProdLLMSettings(LLMSettings):
     timeout_seconds: int = 120
 
 
+class DBSettingsBase(BaseSettings):
+    """Resolved Postgres connection settings for a given environment."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_DB_",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    dsn: str = "postgresql://postgres:postgres@localhost:5432/cvranker"
+
+
+class LocalDBSettings(DBSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_DB_",
+        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class ProdDBSettings(DBSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_DB_",
+        env_file=str(_CONFIG_DIR / "prod.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+_DB_SETTINGS_CLASS_BY_ENV: dict[str, type[DBSettingsBase]] = {
+    "local": LocalDBSettings,
+    "prod": ProdDBSettings,
+}
+
+
 _SETTINGS_CLASS_BY_ENV: dict[str, type[LLMSettings]] = {
     "local": LocalLLMSettings,
     "prod": ProdLLMSettings,
@@ -106,3 +142,21 @@ def load_llm_settings(env_name: str | None = None) -> LLMSettings:
         raise ValueError(f"Unknown environment '{resolved_env}'. Expected one of: {valid}.")
 
     return settings_cls()
+
+
+def load_db_settings(env_name: str | None = None) -> DBSettingsBase:
+    """Resolve the Postgres DSN for the requested environment.
+
+    Same resolution order as `load_llm_settings`: explicit arg ->
+    `CV_RANKER_ENV` -> "local". The DSN itself can be overridden via
+    `CV_RANKER_DB_DSN` or `config/<env>.env`.
+    """
+    resolved_env = (env_name or os.environ.get("CV_RANKER_ENV") or "local").strip().lower()
+
+    settings_cls = _DB_SETTINGS_CLASS_BY_ENV.get(resolved_env)
+    if settings_cls is None:
+        valid = ", ".join(sorted(_DB_SETTINGS_CLASS_BY_ENV))
+        raise ValueError(f"Unknown environment '{resolved_env}'. Expected one of: {valid}.")
+
+    return settings_cls()
+

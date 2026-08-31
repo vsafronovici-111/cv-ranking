@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from typing import Iterable
 import re
@@ -25,36 +26,48 @@ def iter_cv_files(folder: Path) -> Iterable[Path]:
 
 
 def parse_cv_file(file_path: Path) -> ParsedCV:
-    suffix = file_path.suffix.lower()
+    return parse_cv_bytes(file_path.name, file_path.read_bytes(), file_path=file_path)
+
+
+def parse_cv_bytes(filename: str, data: bytes, file_path: Path | None = None) -> ParsedCV:
+    """Parse CV content held in memory (e.g. loaded from a DB blob).
+
+    `file_path` is optional metadata retained on `ParsedCV` for callers that
+    still want a `Path`-shaped result; when omitted a synthetic `Path(filename)`
+    is used so downstream code (which reads `.name`) keeps working.
+    """
+    path = file_path if file_path is not None else Path(filename)
+    suffix = path.suffix.lower()
     warnings: list[str] = []
 
     if suffix in {".txt", ".md"}:
-        return ParsedCV(file_path=file_path, text=file_path.read_text(encoding="utf-8", errors="ignore"), warnings=[])
+        text = data.decode("utf-8", errors="ignore")
+        return ParsedCV(file_path=path, text=text, warnings=[])
 
     if suffix == ".docx":
         try:
-            text = _parse_docx(file_path)
-            return ParsedCV(file_path=file_path, text=text, warnings=[])
+            text = _parse_docx_bytes(data)
+            return ParsedCV(file_path=path, text=text, warnings=[])
         except Exception as exc:  # pragma: no cover - defensive parsing
             warnings.append(f"DOCX parse failed: {exc}")
-            return ParsedCV(file_path=file_path, text="", warnings=warnings)
+            return ParsedCV(file_path=path, text="", warnings=warnings)
 
     if suffix == ".pdf":
         try:
-            text = _parse_pdf_with_pypdf(file_path)
-            return ParsedCV(file_path=file_path, text=text, warnings=[])
+            text = _parse_pdf_bytes_with_pypdf(data)
+            return ParsedCV(file_path=path, text=text, warnings=[])
         except Exception as exc:
             warnings.append(
                 "PDF parse failed. Install optional dependency 'pypdf' for PDF support. "
                 f"Details: {exc}"
             )
-            return ParsedCV(file_path=file_path, text="", warnings=warnings)
+            return ParsedCV(file_path=path, text="", warnings=warnings)
 
-    return ParsedCV(file_path=file_path, text="", warnings=[f"Unsupported extension: {suffix}"])
+    return ParsedCV(file_path=path, text="", warnings=[f"Unsupported extension: {suffix}"])
 
 
-def _parse_docx(file_path: Path) -> str:
-    with zipfile.ZipFile(file_path) as archive:
+def _parse_docx_bytes(data: bytes) -> str:
+    with zipfile.ZipFile(BytesIO(data)) as archive:
         xml_bytes = archive.read("word/document.xml")
 
     root = ET.fromstring(xml_bytes)
@@ -73,11 +86,13 @@ def _parse_docx(file_path: Path) -> str:
     return "\n".join(lines)
 
 
-def _parse_pdf_with_pypdf(file_path: Path) -> str:
+def _parse_pdf_bytes_with_pypdf(data: bytes) -> str:
     from pypdf import PdfReader  # type: ignore
 
-    reader = PdfReader(str(file_path))
+    reader = PdfReader(BytesIO(data))
     pages = [(page.extract_text() or "") for page in reader.pages]
     text = "\n".join(pages)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
 

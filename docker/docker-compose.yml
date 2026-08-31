@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cvranker-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cvranker
+      # Use a subdirectory of the mount point: Postgres refuses to initialize
+      # directly on top of a bind-mounted directory (it sees the mount's
+      # dot-prefixed metadata and thinks the directory is "not empty").
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      # Persist data on the host so it survives container recreation.
+      - ./volume/postgres:/var/lib/postgresql/data
+      # Migrations are applied automatically by CVStore.init_schema() on CLI
+      # startup, not by Postgres' own docker-entrypoint-initdb.d mechanism,
+      # so the same *.sql files work identically for local Postgres, Docker,
+      # and CI.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cvranker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+

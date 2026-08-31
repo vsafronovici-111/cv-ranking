@@ -4,6 +4,13 @@ openai>=1.30.0
 # Core dependency: typed, env/dotenv-driven configuration.
 pydantic-settings>=2.0.0
 
+# Core dependency: Postgres driver for the durable CV processing queue.
+psycopg[binary]>=3.1.0
+
 # Optional: install for better PDF support.
 # pypdf>=4.0.0
+
+# Optional (dev/test only): spins up a real, throwaway Postgres in Docker
+# for tests/test_db.py (equivalent to Testcontainers in Java/Go).
+# testcontainers[postgres]>=4.8.0
 

@@ -1,0 +1,6 @@
+This folder holds the Postgres data directory for the `cvranker-postgres`
+container defined in `docker/docker-compose.yml`.
+
+Contents are gitignored (only this placeholder is tracked) so each
+developer/environment gets its own local database state.
+

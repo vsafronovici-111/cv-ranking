@@ -9,7 +9,11 @@ src/ai_agent_cv_rank.egg-info/top_level.txt
 src/cv_ranker/__init__.py
 src/cv_ranker/__main__.py
 src/cv_ranker/cli.py
+src/cv_ranker/config.py
+src/cv_ranker/db.py
+src/cv_ranker/llm_client.py
 src/cv_ranker/ollama_client.py
 src/cv_ranker/parsing.py
 src/cv_ranker/ranker.py
+tests/test_db.py
 tests/test_ranker.py

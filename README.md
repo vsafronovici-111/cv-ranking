@@ -35,6 +35,33 @@ Optional PDF parser:
 python3 -m pip install "pypdf>=4.0.0"
 ```
 
+### Database setup
+
+Easiest: run Postgres via Docker Compose (see [`docker/README.md`](docker/README.md)):
+
+```bash
+cd docker
+docker compose up -d
+```
+
+This starts Postgres 16 with the `cvranker` database already created,
+persisting data to `docker/volume/postgres` (gitignored) so it survives
+container restarts. It matches the default `CV_RANKER_DB_DSN` in
+`config/local.env.example`: `postgresql://postgres:postgres@localhost:5432/cvranker`.
+
+Alternatively, use any local/existing Postgres install — just create the
+database yourself:
+
+```bash
+createdb cvranker
+```
+
+Schema changes live as plain, ordered SQL files in `db/migrations/*.sql` (see
+[`db/migrations/README.md`](db/migrations/README.md)). They're applied by
+`CVStore.init_schema()` every time the CLI starts (idempotent, safe to
+re-run) and are reused as-is by the db-layer unit tests in `tests/test_db.py`
+so the schema under test always matches production/local.
+
 ## Configuration (local vs prod)
 
 Settings are resolved by `cv_ranker.config.load_llm_settings()`, backed by
@@ -58,6 +85,7 @@ Once the environment is picked, pydantic-settings resolves each field with this 
 | `CV_RANKER_API_KEY`           | `ollama`                     | `EMPTY`                          |
 | `CV_RANKER_MODEL`             | `qwen3:14b`                  | `Qwen/Qwen3-14B`                 |
 | `CV_RANKER_TIMEOUT_SECONDS`   | `90`                          | `120`                            |
+| `CV_RANKER_DB_DSN`            | `postgresql://postgres:postgres@localhost:5432/cvranker` | (same, override in `config/prod.env`) |
 
 Example config files are provided:
 
@@ -68,54 +96,75 @@ Copy and source the one you need (the real `config/local.env` / `config/prod.env
 
 ```bash
 cp config/prod.env.example config/prod.env
-# edit config/prod.env with your real vLLM URL/key/model
+# edit config/prod.env with your real vLLM URL/key/model/DB DSN
 ```
 
-CLI flags always win over environment variables: `--model`, `--base-url`, `--api-key`, `--timeout`.
+CLI flags always win over environment variables: `--model`, `--base-url`, `--api-key`, `--timeout`, `--dsn`.
 
 ## Run
 
-Local (Ollama, default — no flags needed beyond `--cv-folder`/`--requirements`):
+The CLI is split into three stages backed by the `cvs` table so you can ingest once, score independently (and retry only failures), and report at any time:
+
+1. **`ingest`** — load CV files from a folder into Postgres as `PENDING` (deduped by content hash; safe to re-run).
+2. **`process`** — claim `PENDING`/`FAILED` rows one at a time, mark them `PROCESSING`, score them (LLM or heuristic), then mark `SUCCEEDED` or `FAILED`. Re-running `process` automatically retries anything still `FAILED`.
+3. **`report`** — print ranked results for all `SUCCEEDED` CVs.
+
+There's also a **`status`** command to see counts per status.
+
+Local (Ollama, default):
 
 ```bash
 cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv-rank
-PYTHONPATH=src python3 -m cv_ranker \
-  --cv-folder tests/fixtures/cvs \
+
+# 1. Ingest CV files into the database
+PYTHONPATH=src python3 -m cv_ranker ingest --cv-folder tests/fixtures/cvs
+
+# 2. Score all PENDING/FAILED CVs
+PYTHONPATH=src python3 -m cv_ranker process \
   --requirements "Minimum 5 years of experience, required skills: Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis" \
-  --mode auto \
-  --output text
+  --mode auto
+
+# 3. Print ranked results
+PYTHONPATH=src python3 -m cv_ranker report --output text
+
+# Check status counts
+PYTHONPATH=src python3 -m cv_ranker status
 ```
 
 Prod (vLLM):
 
 ```bash
 cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv-rank
-PYTHONPATH=src python3 -m cv_ranker \
-  --cv-folder tests/fixtures/cvs \
+PYTHONPATH=src python3 -m cv_ranker --env prod ingest --cv-folder tests/fixtures/cvs
+PYTHONPATH=src python3 -m cv_ranker --env prod process \
   --requirements "Minimum 5 years of experience, required skills: Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis" \
-  --env prod \
-  --mode auto \
-  --output text
+  --mode auto
+PYTHONPATH=src python3 -m cv_ranker --env prod report --output text
 ```
 
 If the LLM server is not running, use deterministic mode:
 
 ```bash
 cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv-rank
-PYTHONPATH=src python3 -m cv_ranker \
-  --cv-folder tests/fixtures/cvs \
+PYTHONPATH=src python3 -m cv_ranker process \
   --requirements "Minimum 5 years of experience, required skills: Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis" \
   --mode heuristic
+```
+
+Retry only the CVs that failed scoring (e.g. after fixing the LLM server or a parsing issue):
+
+```bash
+cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv-rank
+PYTHONPATH=src python3 -m cv_ranker process \
+  --requirements "..." \
+  --only-failed
 ```
 
 JSON output:
 
 ```bash
 cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv-rank
-PYTHONPATH=src python3 -m cv_ranker \
-  --cv-folder tests/fixtures/cvs \
-  --requirements "Minimum 5 years of experience, required skills: Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis" \
-  --output json
+PYTHONPATH=src python3 -m cv_ranker report --output json
 ```
 
 ## Test
@@ -123,6 +172,16 @@ PYTHONPATH=src python3 -m cv_ranker \
 ```bash
 cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv-rank
 PYTHONPATH=src python3 -m unittest discover -s tests -p "test_*.py"
+```
+
+DB-layer tests (`tests/test_db.py`) automatically spin up a real, throwaway
+Postgres container via [testcontainers-python](https://testcontainers-python.readthedocs.io/)
+(the same pattern as Testcontainers in Java/Go) — just have Docker running,
+no manual database, Docker Compose, or env vars needed for tests:
+
+```bash
+python3 -m pip install -e ".[test]"
+PYTHONPATH=src python3 -m unittest tests.test_db -v
 ```
 
 ## Notes

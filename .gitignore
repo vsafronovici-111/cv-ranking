@@ -11,4 +11,9 @@
 config/local.env
 config/prod.env
 
+# Docker volumes (keep the folder tracked via .gitkeep, ignore its contents)
+docker/volume/**
+!docker/volume/**/
+!docker/volume/**/.gitkeep
+
 

@@ -9,10 +9,11 @@ description = "Rank CVs against job requirements using an OpenAI-compatible LLM 
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Local User" }]
-dependencies = ["openai>=1.30.0", "pydantic-settings>=2.0.0"]
+dependencies = ["openai>=1.30.0", "pydantic-settings>=2.0.0", "psycopg[binary]>=3.1.0"]
 
 [project.optional-dependencies]
 pdf = ["pypdf>=4.0.0"]
+test = ["testcontainers[postgres]>=4.8.0"]
 
 [project.scripts]
 cv-ranker = "cv_ranker.cli:main"
