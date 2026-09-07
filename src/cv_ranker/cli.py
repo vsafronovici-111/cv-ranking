@@ -6,10 +6,12 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Sequence
 
-from cv_ranker.config import load_db_settings, load_llm_settings
+from cv_ranker.config import load_db_settings, load_embedding_settings, load_llm_settings, load_qdrant_settings
 from cv_ranker.db import CVStore, DBSettings, FAILED, PENDING
+from cv_ranker.embedding_client import EmbeddingClient, EmbeddingClientConfig, EmbeddingClientError
 from cv_ranker.llm_client import LLMClient, LLMClientConfig
 from cv_ranker.parsing import iter_cv_files, parse_cv_bytes
+from cv_ranker.qdrant_store import CVVectorStore, CVVectorStoreError, QdrantSettings
 from cv_ranker.ranker import CandidateScore, CVRanker, RankConfig
 
 
@@ -35,6 +37,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     ingest_parser = subparsers.add_parser("ingest", help="Load CV files from a folder into the database as PENDING.")
     ingest_parser.add_argument("--cv-folder", required=True, help="Folder with CV files (.txt, .md, .docx, .pdf).")
+    ingest_parser.add_argument(
+        "--no-embeddings",
+        action="store_true",
+        help="Skip generating/storing embeddings in Qdrant for newly ingested CVs.",
+    )
 
     process_parser = subparsers.add_parser(
         "process", help="Score PENDING/FAILED CVs from the database until the queue is empty."
@@ -91,16 +98,63 @@ def _run_ingest(store: CVStore, args: argparse.Namespace) -> int:
         print(f"CV folder does not exist or is not a folder: {folder}")
         return 1
 
+    embedder = None
+    vector_store = None
+    if not args.no_embeddings:
+        embedding_settings = load_embedding_settings(args.env)
+        qdrant_settings = load_qdrant_settings(args.env)
+        embedder = EmbeddingClient(
+            EmbeddingClientConfig(
+                host=embedding_settings.host,
+                model=embedding_settings.model,
+                timeout_seconds=embedding_settings.timeout_seconds,
+            )
+        )
+        vector_store = CVVectorStore(QdrantSettings(url=qdrant_settings.url, api_key=qdrant_settings.api_key))
+
     inserted = 0
     skipped = 0
+    embedded = 0
+    embedding_failures = 0
+    collection_ready = False
+
     for file_path in iter_cv_files(folder):
-        added = store.ingest_file(file_path.name, file_path.read_bytes())
-        if added:
-            inserted += 1
-        else:
+        data = file_path.read_bytes()
+        cv_id = store.ingest_file(file_path.name, data)
+        if cv_id is None:
             skipped += 1
+            continue
+
+        inserted += 1
+
+        if embedder is None or vector_store is None:
+            continue
+
+        try:
+            parsed = parse_cv_bytes(file_path.name, data)
+            text = parsed.text.strip()
+            if not text:
+                print(f"  [{file_path.name}] no extractable text, skipping embedding.")
+                continue
+
+            vector = embedder.embed(text)
+            if not collection_ready:
+                vector_store.ensure_collection(vector_size=len(vector))
+                collection_ready = True
+
+            vector_store.upsert_cv_embedding(
+                cv_id=cv_id,
+                vector=vector,
+                payload={"cv_file_name": file_path.name, "cv_id": cv_id},
+            )
+            embedded += 1
+        except (EmbeddingClientError, CVVectorStoreError) as exc:
+            embedding_failures += 1
+            print(f"  [{file_path.name}] embedding failed: {exc}")
 
     print(f"Ingested {inserted} new CV(s), skipped {skipped} duplicate(s).")
+    if embedder is not None:
+        print(f"Embeddings: {embedded} stored, {embedding_failures} failed.")
     return 0
 
 

@@ -107,6 +107,90 @@ _DB_SETTINGS_CLASS_BY_ENV: dict[str, type[DBSettingsBase]] = {
 }
 
 
+class QdrantSettingsBase(BaseSettings):
+    """Resolved Qdrant connection settings for a given environment.
+
+    Qdrant's API key (when set) protects BOTH the REST/HTTP interface and
+    the gRPC interface — it's a single service-level secret, not one per
+    protocol. See `docker/docker-compose.yml`'s `QDRANT__SERVICE__API_KEY`.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_QDRANT_",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    url: str = "http://localhost:6333"
+    api_key: str = ""
+
+
+class LocalQdrantSettings(QdrantSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_QDRANT_",
+        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class ProdQdrantSettings(QdrantSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_QDRANT_",
+        env_file=str(_CONFIG_DIR / "prod.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+_QDRANT_SETTINGS_CLASS_BY_ENV: dict[str, type[QdrantSettingsBase]] = {
+    "local": LocalQdrantSettings,
+    "prod": ProdQdrantSettings,
+}
+
+
+class EmbeddingSettingsBase(BaseSettings):
+    """Resolved embedding-model connection settings for a given environment.
+
+    Points at Ollama's native `/api/embed` endpoint (NOT the OpenAI-compatible
+    `/v1` chat path used by `LLMSettings`) — see `cv_ranker.embedding_client`.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_EMBEDDING_",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    host: str = "http://localhost:11434"
+    model: str = "qwen3-embedding:4b"
+    timeout_seconds: int = 90
+
+
+class LocalEmbeddingSettings(EmbeddingSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_EMBEDDING_",
+        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class ProdEmbeddingSettings(EmbeddingSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_EMBEDDING_",
+        env_file=str(_CONFIG_DIR / "prod.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+_EMBEDDING_SETTINGS_CLASS_BY_ENV: dict[str, type[EmbeddingSettingsBase]] = {
+    "local": LocalEmbeddingSettings,
+    "prod": ProdEmbeddingSettings,
+}
+
+
 _SETTINGS_CLASS_BY_ENV: dict[str, type[LLMSettings]] = {
     "local": LocalLLMSettings,
     "prod": ProdLLMSettings,
@@ -160,3 +244,37 @@ def load_db_settings(env_name: str | None = None) -> DBSettingsBase:
 
     return settings_cls()
 
+
+def load_qdrant_settings(env_name: str | None = None) -> QdrantSettingsBase:
+    """Resolve Qdrant connection settings for the requested environment.
+
+    Same resolution order as `load_db_settings`: explicit arg ->
+    `CV_RANKER_ENV` -> "local". `url`/`api_key` can be overridden via
+    `CV_RANKER_QDRANT_URL` / `CV_RANKER_QDRANT_API_KEY` or `config/<env>.env`.
+    """
+    resolved_env = (env_name or os.environ.get("CV_RANKER_ENV") or "local").strip().lower()
+
+    settings_cls = _QDRANT_SETTINGS_CLASS_BY_ENV.get(resolved_env)
+    if settings_cls is None:
+        valid = ", ".join(sorted(_QDRANT_SETTINGS_CLASS_BY_ENV))
+        raise ValueError(f"Unknown environment '{resolved_env}'. Expected one of: {valid}.")
+
+    return settings_cls()
+
+
+def load_embedding_settings(env_name: str | None = None) -> EmbeddingSettingsBase:
+    """Resolve embedding-model connection settings for the requested environment.
+
+    Same resolution order as `load_db_settings`: explicit arg ->
+    `CV_RANKER_ENV` -> "local". `host`/`model`/`timeout_seconds` can be
+    overridden via `CV_RANKER_EMBEDDING_HOST` / `CV_RANKER_EMBEDDING_MODEL` /
+    `CV_RANKER_EMBEDDING_TIMEOUT_SECONDS` or `config/<env>.env`.
+    """
+    resolved_env = (env_name or os.environ.get("CV_RANKER_ENV") or "local").strip().lower()
+
+    settings_cls = _EMBEDDING_SETTINGS_CLASS_BY_ENV.get(resolved_env)
+    if settings_cls is None:
+        valid = ", ".join(sorted(_EMBEDDING_SETTINGS_CLASS_BY_ENV))
+        raise ValueError(f"Unknown environment '{resolved_env}'. Expected one of: {valid}.")
+
+    return settings_cls()

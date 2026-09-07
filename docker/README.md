@@ -31,3 +31,38 @@ docker compose down -v    # stop and wipe the named container (data on host volu
 To fully reset the database, stop the container and delete the contents of
 `docker/volume/postgres/` (everything except `.gitkeep`).
 
+## Qdrant (vector database for embeddings)
+
+Starts a [Qdrant](https://qdrant.tech) container for storing/searching CV
+embeddings, persisting data to `docker/volume/qdrant/qdata` (gitignored) so
+it survives container restarts. Started together with Postgres via the same
+`docker compose up -d` command above (both services are defined in
+`docker/docker-compose.yml`).
+
+Default endpoints:
+
+```
+REST/HTTP: http://localhost:6333
+gRPC:      localhost:6334
+```
+
+Authentication: the container requires an API key (`QDRANT__SERVICE__API_KEY`
+in `docker-compose.yml`), enforced identically on **both** the REST and gRPC
+interfaces — matches `CV_RANKER_QDRANT_API_KEY` in `config/local.env`.
+Generate your own with `openssl rand -hex 32` and keep both files in sync.
+
+Quick health check (unauthenticated — `/healthz` is exempt from the API key):
+
+```bash
+curl http://localhost:6333/healthz
+```
+
+Quick authenticated check (should succeed with the key, `403` without it):
+
+```bash
+curl -H "api-key: <your-key>" http://localhost:6333/collections
+```
+
+To fully reset the vector store, stop the container and delete the contents
+of `docker/volume/qdrant/qdata/` (everything except `.gitkeep`).
+

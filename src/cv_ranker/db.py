@@ -77,8 +77,9 @@ class CVStore:
             for migration_file in migration_files:
                 conn.execute(migration_file.read_text(encoding="utf-8"))
 
-    def ingest_file(self, filename: str, data: bytes) -> bool:
-        """Insert a CV as PENDING. Returns False if it already exists (dedup by content)."""
+    def ingest_file(self, filename: str, data: bytes) -> int | None:
+        """Insert a CV as PENDING. Returns the new row's id, or None if it
+        already exists (dedup by content hash)."""
         content_hash = hashlib.sha256(data).hexdigest()
         with self._conn() as conn:
             cur = conn.execute(
@@ -90,7 +91,8 @@ class CVStore:
                 """,
                 (filename, data, content_hash, PENDING),
             )
-            return cur.fetchone() is not None
+            row = cur.fetchone()
+            return row["id"] if row else None
 
     def claim_next(self, statuses: tuple[str, ...] = (PENDING, FAILED)) -> dict[str, Any] | None:
         """Atomically pick one row to process and mark it PROCESSING.

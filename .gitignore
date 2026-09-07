@@ -16,4 +16,7 @@ docker/volume/**
 !docker/volume/**/
 !docker/volume/**/.gitkeep
 
+# VS Code
+.vscode/
+
 
