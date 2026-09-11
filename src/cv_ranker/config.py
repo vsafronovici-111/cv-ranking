@@ -152,8 +152,10 @@ _QDRANT_SETTINGS_CLASS_BY_ENV: dict[str, type[QdrantSettingsBase]] = {
 class EmbeddingSettingsBase(BaseSettings):
     """Resolved embedding-model connection settings for a given environment.
 
-    Points at Ollama's native `/api/embed` endpoint (NOT the OpenAI-compatible
-    `/v1` chat path used by `LLMSettings`) — see `cv_ranker.embedding_client`.
+    Uses the OpenAI-compatible `/v1/embeddings` endpoint, same as
+    `LLMSettings` — both Ollama and vLLM serve embeddings through it, so
+    `cv_ranker.embedding_client.EmbeddingClient` works against either backend
+    unchanged.
     """
 
     model_config = SettingsConfigDict(
@@ -162,12 +164,15 @@ class EmbeddingSettingsBase(BaseSettings):
         extra="ignore",
     )
 
-    host: str = "http://localhost:11434"
-    model: str = "qwen3-embedding:4b"
+    base_url: str
+    api_key: str
+    model: str
     timeout_seconds: int = 90
 
 
 class LocalEmbeddingSettings(EmbeddingSettingsBase):
+    """Local development defaults: Ollama's OpenAI-compatible API at /v1."""
+
     model_config = SettingsConfigDict(
         env_prefix="CV_RANKER_EMBEDDING_",
         env_file=str(_CONFIG_DIR / "local.env"),
@@ -175,14 +180,26 @@ class LocalEmbeddingSettings(EmbeddingSettingsBase):
         extra="ignore",
     )
 
+    base_url: str = "http://localhost:11434/v1"
+    api_key: str = "ollama"  # Ollama ignores the key; the OpenAI SDK requires a non-empty value.
+    model: str = "qwen3-embedding:4b"
+    timeout_seconds: int = 90
+
 
 class ProdEmbeddingSettings(EmbeddingSettingsBase):
+    """Production defaults: vLLM's OpenAI-compatible server."""
+
     model_config = SettingsConfigDict(
         env_prefix="CV_RANKER_EMBEDDING_",
         env_file=str(_CONFIG_DIR / "prod.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    base_url: str = "http://localhost:8000/v1"
+    api_key: str = "EMPTY"
+    model: str = "Qwen/Qwen3-Embedding-4B"
+    timeout_seconds: int = 90
 
 
 _EMBEDDING_SETTINGS_CLASS_BY_ENV: dict[str, type[EmbeddingSettingsBase]] = {
@@ -266,8 +283,9 @@ def load_embedding_settings(env_name: str | None = None) -> EmbeddingSettingsBas
     """Resolve embedding-model connection settings for the requested environment.
 
     Same resolution order as `load_db_settings`: explicit arg ->
-    `CV_RANKER_ENV` -> "local". `host`/`model`/`timeout_seconds` can be
-    overridden via `CV_RANKER_EMBEDDING_HOST` / `CV_RANKER_EMBEDDING_MODEL` /
+    `CV_RANKER_ENV` -> "local". `base_url`/`api_key`/`model`/`timeout_seconds`
+    can be overridden via `CV_RANKER_EMBEDDING_BASE_URL` /
+    `CV_RANKER_EMBEDDING_API_KEY` / `CV_RANKER_EMBEDDING_MODEL` /
     `CV_RANKER_EMBEDDING_TIMEOUT_SECONDS` or `config/<env>.env`.
     """
     resolved_env = (env_name or os.environ.get("CV_RANKER_ENV") or "local").strip().lower()

@@ -7,6 +7,13 @@
 .venv/
 **/.venv/
 
+# Python cache
+__pycache__/
+**/__pycache__/
+*.py[cod]   
+*.pyc
+
+
 # Local secrets/config (keep the .env.example templates tracked)
 config/local.env
 config/prod.env

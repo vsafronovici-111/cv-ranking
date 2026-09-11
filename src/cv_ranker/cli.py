@@ -69,11 +69,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     status_parser = subparsers.add_parser("status", help="Show CV counts grouped by processing status.")
 
+    find_parser = subparsers.add_parser(
+        "find", help="Embed a criteria text and search Qdrant for similar CVs."
+    )
+    find_parser.add_argument(
+        "--criteria", required=True, help="Free-text requirements to embed and search against."
+    )
+    find_parser.add_argument("--top-k", type=int, default=10, help="Number of results to return.")
+    find_parser.add_argument("--output", choices=["text", "json"], default="text", help="Output format.")
+
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.command == "find":
+        return _run_find(args)
 
     db_settings = load_db_settings(args.env)
     dsn = args.dsn or db_settings.dsn
@@ -105,7 +117,8 @@ def _run_ingest(store: CVStore, args: argparse.Namespace) -> int:
         qdrant_settings = load_qdrant_settings(args.env)
         embedder = EmbeddingClient(
             EmbeddingClientConfig(
-                host=embedding_settings.host,
+                base_url=embedding_settings.base_url,
+                api_key=embedding_settings.api_key,
                 model=embedding_settings.model,
                 timeout_seconds=embedding_settings.timeout_seconds,
             )
@@ -222,6 +235,50 @@ def _run_report(store: CVStore, args: argparse.Namespace) -> int:
         return 0
 
     _print_text_results(results)
+    return 0
+
+
+def _run_find(args: argparse.Namespace) -> int:
+    embedding_settings = load_embedding_settings(args.env)
+    qdrant_settings = load_qdrant_settings(args.env)
+
+    embedder = EmbeddingClient(
+        EmbeddingClientConfig(
+            base_url=embedding_settings.base_url,
+            api_key=embedding_settings.api_key,
+            model=embedding_settings.model,
+            timeout_seconds=embedding_settings.timeout_seconds,
+        )
+    )
+    vector_store = CVVectorStore(QdrantSettings(url=qdrant_settings.url, api_key=qdrant_settings.api_key))
+
+    try:
+        vector = embedder.embed(args.criteria)
+        matches = vector_store.search_similar(vector, top_k=args.top_k)
+    except (EmbeddingClientError, CVVectorStoreError) as exc:
+        print(f"Search failed: {exc}")
+        return 1
+
+    if args.output == "json":
+        payload = [
+            {
+                "score": match["score"],
+                "cv_id": match["payload"].get("cv_id"),
+                "cv_file_name": match["payload"].get("cv_file_name"),
+            }
+            for match in matches
+        ]
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    if not matches:
+        print("No matching CVs found. Run 'ingest' first to populate embeddings.")
+        return 0
+
+    for index, match in enumerate(matches, start=1):
+        cv_id = match["payload"].get("cv_id")
+        cv_file_name = match["payload"].get("cv_file_name")
+        print(f"{index}. {cv_file_name} (cv_id={cv_id}, score={match['score']:.4f})")
     return 0
 
 

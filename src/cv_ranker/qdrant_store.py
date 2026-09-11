@@ -56,3 +56,20 @@ class CVVectorStore:
         except Exception as exc:
             raise CVVectorStoreError(f"Cannot upsert embedding for cv_id={cv_id}: {exc}") from exc
 
+    def search_similar(self, vector: list[float], top_k: int = 10) -> list[dict[str, Any]]:
+        """Return the `top_k` CVs whose stored embedding is closest to `vector`.
+
+        Each result is `{"score": float, "payload": {...}}`, where `payload`
+        carries whatever was stored by `upsert_cv_embedding` (`cv_id`, `cv_file_name`).
+        """
+        try:
+            result = self._client.query_points(
+                collection_name=self.collection_name,
+                query=vector,
+                limit=top_k,
+            )
+        except Exception as exc:
+            raise CVVectorStoreError(f"Cannot search Qdrant collection '{self.collection_name}': {exc}") from exc
+
+        return [{"score": point.score, "payload": point.payload or {}} for point in result.points]
+

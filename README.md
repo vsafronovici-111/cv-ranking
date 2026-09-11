@@ -17,6 +17,7 @@ It uses an **OpenAI-compatible chat client** (the official `openai` SDK) so the 
 - Heuristic fallback when the LLM server is unavailable
 - Structured output with score, matched/missing skills, and reasoning
 - JSON or human-readable text output
+- Semantic search over ingested CVs via Qdrant embeddings (`find` command)
 - Environment-based config (`local`/`prod`) resolved from env vars, with `local` as the safe default
 
 ## Quick Start
@@ -86,6 +87,10 @@ Once the environment is picked, pydantic-settings resolves each field with this 
 | `CV_RANKER_MODEL`             | `qwen3:14b`                  | `Qwen/Qwen3-14B`                 |
 | `CV_RANKER_TIMEOUT_SECONDS`   | `90`                          | `120`                            |
 | `CV_RANKER_DB_DSN`            | `postgresql://postgres:postgres@localhost:5432/cvranker` | (same, override in `config/prod.env`) |
+| `CV_RANKER_EMBEDDING_BASE_URL`| `http://localhost:11434/v1`  | `http://localhost:8000/v1`       |
+| `CV_RANKER_EMBEDDING_API_KEY` | `ollama`                     | `EMPTY`                          |
+| `CV_RANKER_EMBEDDING_MODEL`   | `qwen3-embedding:4b`         | `Qwen/Qwen3-Embedding-4B`        |
+| `CV_RANKER_EMBEDDING_TIMEOUT_SECONDS` | `90`                 | `90`                             |
 
 Example config files are provided:
 
@@ -109,7 +114,7 @@ The CLI is split into three stages backed by the `cvs` table so you can ingest o
 2. **`process`** — claim `PENDING`/`FAILED` rows one at a time, mark them `PROCESSING`, score them (LLM or heuristic), then mark `SUCCEEDED` or `FAILED`. Re-running `process` automatically retries anything still `FAILED`.
 3. **`report`** — print ranked results for all `SUCCEEDED` CVs.
 
-There's also a **`status`** command to see counts per status.
+There's also a **`status`** command to see counts per status, and a **`find`** command to semantically search the CVs already embedded into Qdrant during `ingest` (independent of the `cvs` table/queue above).
 
 Local (Ollama, default):
 
@@ -129,6 +134,11 @@ PYTHONPATH=src python3 -m cv_ranker report --output text
 
 # Check status counts
 PYTHONPATH=src python3 -m cv_ranker status
+
+# Semantic search: embed criteria text and find similar CVs in Qdrant
+PYTHONPATH=src python3 -m cv_ranker find \
+  --criteria "Minimum 5 years of experience, required skills: Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis" \
+  --top-k 10
 ```
 
 Prod (vLLM):
@@ -167,6 +177,26 @@ cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv
 PYTHONPATH=src python3 -m cv_ranker report --output json
 ```
 
+### Semantic search (`find`)
+
+`find` embeds a free-text criteria string with the same embedding model used
+during `ingest`, then queries the `cv_embeddings` collection in Qdrant for the
+closest-matching CVs by cosine similarity. It only needs Qdrant + the
+OpenAI-compatible embedding server (Ollama or vLLM) reachable — it does not
+touch Postgres or the `cvs` table, so it works independently of
+`process`/`report`.
+
+```bash
+cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv-rank
+PYTHONPATH=src python3 -m cv_ranker find \
+  --criteria "Minimum 5 years of experience, required skills: Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis" \
+  --top-k 10 \
+  --output json
+```
+
+Each result carries the payload stored at ingestion time: `cv_id` (the
+Postgres `cvs.id`) and `cv_file_name`, plus the similarity `score`.
+
 ## Test
 
 ```bash
@@ -188,7 +218,7 @@ PYTHONPATH=src python3 -m unittest tests.test_db -v
 
 - PDF extraction requires `pypdf`.
 - `.docx` extraction works without extra dependencies.
-- Both Ollama and vLLM are used through the same `cv_ranker.llm_client.LLMClient` (built on the `openai` SDK's `chat.completions.create`), so switching backends is a config change, not a code change.
+- Both Ollama and vLLM are used through the same `cv_ranker.llm_client.LLMClient` (built on the `openai` SDK's `chat.completions.create`) and `cv_ranker.embedding_client.EmbeddingClient` (built on `embeddings.create`), so switching backends is a config change, not a code change.
 - Reasoning models like `qwen3:14b` emit chain-of-thought tokens before the final answer, so per-candidate latency can be several seconds to ~1 minute depending on CV length; scoring many CVs in `llm`/`auto` mode runs sequentially and can take a while.
 - For production use, you can improve scoring by adding weighted requirements and hard filters.
 
