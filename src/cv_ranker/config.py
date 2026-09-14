@@ -5,7 +5,6 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 # Project root: src/cv_ranker/config.py -> src/cv_ranker -> src -> <repo root>
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _CONFIG_DIR = _REPO_ROOT / "config"

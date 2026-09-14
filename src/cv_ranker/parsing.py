@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+import re
+import xml.etree.ElementTree as ET
+import zipfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import Iterable
-import re
-import zipfile
-import xml.etree.ElementTree as ET
-
 
 SUPPORTED_SUFFIXES = {".txt", ".md", ".docx", ".pdf"}
 
@@ -48,7 +47,7 @@ def parse_cv_bytes(filename: str, data: bytes, file_path: Path | None = None) ->
         try:
             text = _parse_docx_bytes(data)
             return ParsedCV(file_path=path, text=text, warnings=[])
-        except Exception as exc:  # pragma: no cover - defensive parsing
+        except Exception as exc:  # noqa: BLE001 - pragma: no cover - any docx-parsing failure degrades to a warning
             warnings.append(f"DOCX parse failed: {exc}")
             return ParsedCV(file_path=path, text="", warnings=warnings)
 
@@ -56,11 +55,8 @@ def parse_cv_bytes(filename: str, data: bytes, file_path: Path | None = None) ->
         try:
             text = _parse_pdf_bytes_with_pypdf(data)
             return ParsedCV(file_path=path, text=text, warnings=[])
-        except Exception as exc:
-            warnings.append(
-                "PDF parse failed. Install optional dependency 'pypdf' for PDF support. "
-                f"Details: {exc}"
-            )
+        except Exception as exc:  # noqa: BLE001 - any pdf-parsing failure degrades to a warning, not a crash
+            warnings.append(f"PDF parse failed. Install optional dependency 'pypdf' for PDF support. Details: {exc}")
             return ParsedCV(file_path=path, text="", warnings=warnings)
 
     return ParsedCV(file_path=path, text="", warnings=[f"Unsupported extension: {suffix}"])
@@ -93,6 +89,3 @@ def _parse_pdf_bytes_with_pypdf(data: bytes) -> str:
     pages = [(page.extract_text() or "") for page in reader.pages]
     text = "\n".join(pages)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
-
-
-

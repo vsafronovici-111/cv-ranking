@@ -26,4 +26,7 @@ docker/volume/**
 # VS Code
 .vscode/
 
+# Claude Code: project settings.json is shared/committed, settings.local.json is per-developer
+.claude/settings.local.json
+
 

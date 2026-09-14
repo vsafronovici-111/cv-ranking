@@ -1,11 +1,69 @@
-Derek Nguyen
-Frontend Web Developer (React Specialist)
+---
 
-Experience:
-- 4 years of frontend development experience
-- Deep expertise in React, Hooks, Context API, and Redux Toolkit
-- Built component libraries and design systems in React with TypeScript
-- Testing with Jest and React Testing Library
-- Focused exclusively on the React ecosystem throughout career
+**Derek Nguyen**  
+📞 (123) 456-7890 | 📧 derek.nguyen@example.com | 📍 New York, NY  
+[LinkedIn Profile](https://linkedin.com/in/dereknguyen) | [GitHub Profile](https://github.com/dereknguyen)  
 
+---
 
+### **Summary**  
+Dedicated and results-driven Frontend Web Developer with 4 years of focused experience in the React ecosystem. Deep expertise in React, Hooks, Context API, Redux Toolkit, and TypeScript, with a strong track record of 
+building reusable component libraries, scalable design systems, and high-performance user interfaces. Proficient in testing with Jest and React Testing Library, and committed to writing clean, testable, and maintainable 
+code. Passionate about leveraging modern React practices to deliver exceptional user experiences and drive product success.  
+
+---
+
+### **Professional Experience**  
+
+**Senior Frontend Developer**  
+*CodeCraft Technologies* | New York, NY | *Jan 2021 – Present*  
+- Led the development of a cross-platform React application for a fintech startup, utilizing Redux Toolkit and Context API to manage complex state across multiple feature modules.  
+- Built a reusable component library and design system using TypeScript, improving code reusability by 40% and reducing development time for new features.  
+- Implemented end-to-end testing with Jest and React Testing Library, ensuring 95%+ test coverage and reducing bug rates by 30%.  
+- Collaborated with product managers and designers to align frontend development with user-centered design principles and business goals.  
+- Mentored junior developers and contributed to internal documentation to standardize best practices across the team.  
+
+**Frontend Developer**  
+*InnovateUI Solutions* | New York, NY | *Jun 2018 – Dec 2020*  
+- Developed a scalable React application for a healthcare platform, leveraging Hooks and Redux Toolkit to manage state efficiently and improve application performance.  
+- Created a design system with Figma and Storybook, enabling consistent UI/UX across multiple product lines and reducing onboarding time for new developers.  
+- Integrated third-party libraries (e.g., React Router, Axios) to enhance application functionality and user experience.  
+- Conducted code reviews and performance audits, optimizing critical paths and reducing page load times by 25%.  
+
+---
+
+### **Projects**  
+
+**1. React Component Library (CodeCraft UI)**  
+*Technologies: React, TypeScript, Storybook, Jest, React Testing Library*  
+- Built a comprehensive React component library with reusable UI elements, form components, and utility hooks, used across multiple projects within the company.  
+- Implemented automated testing with Jest and React Testing Library to ensure component reliability and consistency.  
+- **Outcome**: Reduced development time for new projects by 35% and improved code quality through standardized patterns.  
+
+**2. E-Commerce Dashboard (React + Redux Toolkit)**  
+*Technologies: React, Redux Toolkit, TypeScript, Material UI, REST APIs*  
+- Developed a feature-rich dashboard for an e-commerce platform, enabling real-time analytics, product management, and sales tracking.  
+- Utilized Redux Toolkit for efficient state management, reducing boilerplate code and improving developer productivity.  
+- **Outcome**: Increased user engagement by 25% and reduced feature development time by 20%.  
+
+**3. Personal Portfolio Website (React + TypeScript)**  
+*Technologies: React, TypeScript, React Router, Vite, Tailwind CSS*  
+- Built a modern, responsive portfolio website to showcase technical skills and projects, with interactive components and smooth navigation.  
+- Implemented dark/light mode toggle and lazy loading for images, improving performance and user experience.  
+
+---
+
+### **Skills**  
+- **Frontend**: React, Hooks, Context API, Redux Toolkit, TypeScript  
+- **UI/UX**: HTML5, CSS3, Tailwind CSS, Material UI, Figma  
+- **Testing**: Jest, React Testing Library, Storybook  
+- **Tools**: Git, GitHub, Vite, Webpack, Postman, Jira  
+- **Other**: Agile/Scrum, Cross-functional teamwork, Code review, Technical documentation  
+
+---
+
+### **Education**  
+**Bachelor of Science in Computer Science**  
+*New York University (NYU)* | *Graduated:^[[A 2018*  
+
+---

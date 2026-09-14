@@ -4,13 +4,11 @@ from pathlib import Path
 
 from cv_ranker.ranker import CVRanker, RankConfig
 
-
 if __name__ == "__main__":
     repo_root = Path(__file__).resolve().parent.parent
     cv_folder = repo_root / "tests" / "fixtures" / "cvs"
     requirements = (
-        "Minimum 5 years of experience, required skills: "
-        "Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis"
+        "Minimum 5 years of experience, required skills: Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis"
     )
 
     ranker = CVRanker(llm_client=None)
@@ -18,4 +16,3 @@ if __name__ == "__main__":
 
     for result in results:
         print(f"{result.filename}: {result.score}/100")
-

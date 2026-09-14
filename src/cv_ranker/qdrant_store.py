@@ -18,11 +18,14 @@ class QdrantSettings:
 
 
 class CVVectorStore:
-    """Stores/looks up CV text embeddings in Qdrant.
+    """Stores/looks up CV text-chunk embeddings in Qdrant.
 
-    One point per CV, keyed by the Postgres `cvs.id` so it stays in lockstep
-    with the row that owns the raw file data. `ensure_collection` is
-    idempotent and safe to call every time (mirrors `CVStore.init_schema()`).
+    Each CV is split into a few chunks (summary/technologies/experience, see
+    `cv_ranker.cv_structurer`), each stored as its own point so they can be
+    matched independently; every point's payload carries the Postgres
+    `cvs.id` (`cv_id`), `cv_file_name`, and `chunk_type` so results can be
+    grouped back to the CV they came from. `ensure_collection` is idempotent
+    and safe to call every time (mirrors `CVStore.init_schema()`).
     """
 
     def __init__(self, settings: QdrantSettings, collection_name: str = "cv_embeddings"):
@@ -46,21 +49,27 @@ class CVVectorStore:
         except Exception as exc:
             raise CVVectorStoreError(f"Cannot ensure Qdrant collection '{self.collection_name}': {exc}") from exc
 
-    def upsert_cv_embedding(self, cv_id: int, vector: list[float], payload: dict[str, Any]) -> None:
-        """Store (or overwrite) the embedding for CV `cv_id`."""
+    def upsert_cv_embedding(self, point_id: int | str, vector: list[float], payload: dict[str, Any]) -> None:
+        """Store (or overwrite) the embedding for one CV chunk, at `point_id`.
+
+        `point_id` must be unique per chunk (e.g. a UUID derived from
+        `cv_id` + `chunk_type`) since one CV now owns multiple points; the
+        CV itself is identified via `payload["cv_id"]`, not the point id.
+        """
         try:
             self._client.upsert(
                 collection_name=self.collection_name,
-                points=[qmodels.PointStruct(id=cv_id, vector=vector, payload=payload)],
+                points=[qmodels.PointStruct(id=point_id, vector=vector, payload=payload)],
             )
         except Exception as exc:
-            raise CVVectorStoreError(f"Cannot upsert embedding for cv_id={cv_id}: {exc}") from exc
+            raise CVVectorStoreError(f"Cannot upsert embedding for point_id={point_id}: {exc}") from exc
 
     def search_similar(self, vector: list[float], top_k: int = 10) -> list[dict[str, Any]]:
         """Return the `top_k` CVs whose stored embedding is closest to `vector`.
 
         Each result is `{"score": float, "payload": {...}}`, where `payload`
-        carries whatever was stored by `upsert_cv_embedding` (`cv_id`, `cv_file_name`).
+        carries whatever was stored by `upsert_cv_embedding`
+        (`cv_id`, `cv_file_name`, `chunk_type`).
         """
         try:
             result = self._client.query_points(
@@ -72,4 +81,3 @@ class CVVectorStore:
             raise CVVectorStoreError(f"Cannot search Qdrant collection '{self.collection_name}': {exc}") from exc
 
         return [{"score": point.score, "payload": point.payload or {}} for point in result.points]
-

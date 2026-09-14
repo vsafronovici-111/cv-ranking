@@ -110,7 +110,7 @@ CLI flags always win over environment variables: `--model`, `--base-url`, `--api
 
 The CLI is split into three stages backed by the `cvs` table so you can ingest once, score independently (and retry only failures), and report at any time:
 
-1. **`ingest`** — load CV files from a folder into Postgres as `PENDING` (deduped by content hash; safe to re-run).
+1. **`ingest`** — load CV files from a folder into Postgres as `PENDING` (deduped by content hash; safe to re-run). Unless `--no-embeddings` is passed, each new CV is also sent to the LLM to extract a structured `{summary, technologies, experience}` view (see [Structured CV chunking](#structured-cv-chunking-ingest)), and each of those three pieces is embedded and stored as its own point in Qdrant.
 2. **`process`** — claim `PENDING`/`FAILED` rows one at a time, mark them `PROCESSING`, score them (LLM or heuristic), then mark `SUCCEEDED` or `FAILED`. Re-running `process` automatically retries anything still `FAILED`.
 3. **`report`** — print ranked results for all `SUCCEEDED` CVs.
 
@@ -177,11 +177,32 @@ cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv
 PYTHONPATH=src python3 -m cv_ranker report --output json
 ```
 
+### Structured CV chunking (`ingest`)
+
+Rather than embedding the whole raw CV text as one vector, `ingest` first
+asks the LLM (via `cv_ranker.llm_client.LLMClient.generate_tool_call`, forcing
+a `record_cv_structure` tool call — see `cv_ranker.cv_structurer`) to extract:
+
+```json
+{
+  "summary": "Senior level Software engineer proficient in many programming languages like Java, Go, ...",
+  "technologies": ["PostgreSQL", "MongoDB", "Redis", "..."],
+  "experience": "13 years"
+}
+```
+
+Each of the three fields is then embedded and stored as its own point in the
+`cv_embeddings` Qdrant collection, so a CV normally yields up to three points
+(a section is skipped if the LLM returns it empty). Every point's payload
+carries `cv_id` (the Postgres `cvs.id`), `cv_file_name`, and `chunk_type`
+(`summary` | `technologies` | `experience`) so results can be traced back to
+the CV — and the section — they came from.
+
 ### Semantic search (`find`)
 
 `find` embeds a free-text criteria string with the same embedding model used
 during `ingest`, then queries the `cv_embeddings` collection in Qdrant for the
-closest-matching CVs by cosine similarity. It only needs Qdrant + the
+closest-matching chunks by cosine similarity. It only needs Qdrant + the
 OpenAI-compatible embedding server (Ollama or vLLM) reachable — it does not
 touch Postgres or the `cvs` table, so it works independently of
 `process`/`report`.
@@ -195,7 +216,10 @@ PYTHONPATH=src python3 -m cv_ranker find \
 ```
 
 Each result carries the payload stored at ingestion time: `cv_id` (the
-Postgres `cvs.id`) and `cv_file_name`, plus the similarity `score`.
+Postgres `cvs.id`), `cv_file_name`, and `chunk_type`, plus the similarity
+`score`. Because each CV can contribute up to three chunks, the same CV may
+appear more than once in the results (e.g. matching on both `summary` and
+`technologies`).
 
 ## Test
 

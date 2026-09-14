@@ -2,17 +2,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import uuid
+from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
-from typing import Sequence
 
 from cv_ranker.config import load_db_settings, load_embedding_settings, load_llm_settings, load_qdrant_settings
-from cv_ranker.db import CVStore, DBSettings, FAILED, PENDING
+from cv_ranker.cv_structurer import extract_cv_structure
+from cv_ranker.db import FAILED, PENDING, CVStore, DBSettings
 from cv_ranker.embedding_client import EmbeddingClient, EmbeddingClientConfig, EmbeddingClientError
-from cv_ranker.llm_client import LLMClient, LLMClientConfig
+from cv_ranker.llm_client import LLMClient, LLMClientConfig, LLMClientError
 from cv_ranker.parsing import iter_cv_files, parse_cv_bytes
 from cv_ranker.qdrant_store import CVVectorStore, CVVectorStoreError, QdrantSettings
 from cv_ranker.ranker import CandidateScore, CVRanker, RankConfig
+
+CV_CHUNK_ID_NAMESPACE = uuid.UUID("2f3b6f1a-6c3e-4a86-9f0b-2f7f6f3c6d21")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -67,14 +71,10 @@ def build_parser() -> argparse.ArgumentParser:
     report_parser.add_argument("--top-k", type=int, default=0, help="Limit output to top K candidates; 0 shows all.")
     report_parser.add_argument("--output", choices=["text", "json"], default="text", help="Output format.")
 
-    status_parser = subparsers.add_parser("status", help="Show CV counts grouped by processing status.")
+    subparsers.add_parser("status", help="Show CV counts grouped by processing status.")
 
-    find_parser = subparsers.add_parser(
-        "find", help="Embed a criteria text and search Qdrant for similar CVs."
-    )
-    find_parser.add_argument(
-        "--criteria", required=True, help="Free-text requirements to embed and search against."
-    )
+    find_parser = subparsers.add_parser("find", help="Embed a criteria text and search Qdrant for similar CVs.")
+    find_parser.add_argument("--criteria", required=True, help="Free-text requirements to embed and search against.")
     find_parser.add_argument("--top-k", type=int, default=10, help="Number of results to return.")
     find_parser.add_argument("--output", choices=["text", "json"], default="text", help="Output format.")
 
@@ -110,11 +110,21 @@ def _run_ingest(store: CVStore, args: argparse.Namespace) -> int:
         print(f"CV folder does not exist or is not a folder: {folder}")
         return 1
 
+    llm_client = None
     embedder = None
     vector_store = None
     if not args.no_embeddings:
+        llm_settings = load_llm_settings(args.env)
         embedding_settings = load_embedding_settings(args.env)
         qdrant_settings = load_qdrant_settings(args.env)
+        llm_client = LLMClient(
+            LLMClientConfig(
+                base_url=llm_settings.base_url,
+                api_key=llm_settings.api_key,
+                model=llm_settings.model,
+                timeout_seconds=llm_settings.timeout_seconds,
+            )
+        )
         embedder = EmbeddingClient(
             EmbeddingClientConfig(
                 base_url=embedding_settings.base_url,
@@ -140,7 +150,7 @@ def _run_ingest(store: CVStore, args: argparse.Namespace) -> int:
 
         inserted += 1
 
-        if embedder is None or vector_store is None:
+        if llm_client is None or embedder is None or vector_store is None:
             continue
 
         try:
@@ -150,24 +160,44 @@ def _run_ingest(store: CVStore, args: argparse.Namespace) -> int:
                 print(f"  [{file_path.name}] no extractable text, skipping embedding.")
                 continue
 
-            vector = embedder.embed(text)
-            if not collection_ready:
-                vector_store.ensure_collection(vector_size=len(vector))
-                collection_ready = True
+            structure = extract_cv_structure(llm_client, text)
+            chunks = {
+                "summary": structure.summary,
+                "technologies": ", ".join(structure.technologies),
+                "experience": structure.experience,
+            }
 
-            vector_store.upsert_cv_embedding(
-                cv_id=cv_id,
-                vector=vector,
-                payload={"cv_file_name": file_path.name, "cv_id": cv_id},
-            )
-            embedded += 1
-        except (EmbeddingClientError, CVVectorStoreError) as exc:
+            print(chunks)
+
+            stored_chunks = 0
+            for chunk_type, chunk_text in chunks.items():
+                if not chunk_text:
+                    continue
+
+                vector = embedder.embed(chunk_text)
+                if not collection_ready:
+                    vector_store.ensure_collection(vector_size=len(vector))
+                    collection_ready = True
+
+                point_id = str(uuid.uuid5(CV_CHUNK_ID_NAMESPACE, f"{cv_id}:{chunk_type}"))
+                vector_store.upsert_cv_embedding(
+                    point_id=point_id,
+                    vector=vector,
+                    payload={"cv_id": cv_id, "cv_file_name": file_path.name, "chunk_type": chunk_type},
+                )
+                stored_chunks += 1
+
+            if stored_chunks > 0:
+                embedded += 1
+            else:
+                print(f"  [{file_path.name}] LLM extracted no usable chunks, skipping embedding.")
+        except (LLMClientError, EmbeddingClientError, CVVectorStoreError) as exc:
             embedding_failures += 1
             print(f"  [{file_path.name}] embedding failed: {exc}")
 
     print(f"Ingested {inserted} new CV(s), skipped {skipped} duplicate(s).")
     if embedder is not None:
-        print(f"Embeddings: {embedded} stored, {embedding_failures} failed.")
+        print(f"Embeddings: {embedded} CV(s) chunked and stored, {embedding_failures} failed.")
     return 0
 
 
@@ -199,7 +229,7 @@ def _run_process(store: CVStore, args: argparse.Namespace) -> int:
         processed += 1
         try:
             parsed = parse_cv_bytes(row["cv_file_name"], row["data"])
-            score = ranker._score_candidate(parsed, config)
+            score = ranker.score_candidate(parsed, config)
             store.mark_succeeded(row["id"], asdict(score))
             succeeded += 1
         except Exception as exc:  # noqa: BLE001 - persist any failure and keep going
@@ -265,6 +295,7 @@ def _run_find(args: argparse.Namespace) -> int:
                 "score": match["score"],
                 "cv_id": match["payload"].get("cv_id"),
                 "cv_file_name": match["payload"].get("cv_file_name"),
+                "chunk_type": match["payload"].get("chunk_type"),
             }
             for match in matches
         ]
@@ -278,7 +309,8 @@ def _run_find(args: argparse.Namespace) -> int:
     for index, match in enumerate(matches, start=1):
         cv_id = match["payload"].get("cv_id")
         cv_file_name = match["payload"].get("cv_file_name")
-        print(f"{index}. {cv_file_name} (cv_id={cv_id}, score={match['score']:.4f})")
+        chunk_type = match["payload"].get("chunk_type", "?")
+        print(f"{index}. {cv_file_name} (cv_id={cv_id}, chunk={chunk_type}, score={match['score']:.4f})")
     return 0
 
 
@@ -307,6 +339,3 @@ def _print_text_results(results: list[CandidateScore]) -> None:
         if result.warnings:
             print(f"   Warnings: {' | '.join(result.warnings)}")
         print()
-
-
-

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
-from pathlib import Path
 import re
-from typing import Any, Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
 
-from cv_ranker.ollama_client import OllamaClient, OllamaClientError
+from cv_ranker.llm_client import LLMClient, LLMClientError
 from cv_ranker.parsing import ParsedCV, iter_cv_files, parse_cv_file
-
 
 SYSTEM_PROMPT = (
     "You are a strict technical recruiter assistant. "
@@ -45,14 +44,14 @@ class CVRanker:
             raise ValueError(f"CV folder does not exist or is not a folder: {folder}")
 
         parsed_cvs = [parse_cv_file(path) for path in iter_cv_files(folder)]
-        scores = [self._score_candidate(parsed_cv, config) for parsed_cv in parsed_cvs]
+        scores = [self.score_candidate(parsed_cv, config) for parsed_cv in parsed_cvs]
         scores.sort(key=lambda c: (-c.score, c.filename.lower()))
 
         if config.top_k > 0:
             return scores[: config.top_k]
         return scores
 
-    def _score_candidate(self, parsed_cv: ParsedCV, config: RankConfig) -> CandidateScore:
+    def score_candidate(self, parsed_cv: ParsedCV, config: RankConfig) -> CandidateScore:
         warnings = list(parsed_cv.warnings)
         filename = parsed_cv.file_path.name
         cv_text = parsed_cv.text.strip()
@@ -76,7 +75,7 @@ class CVRanker:
                         filename=filename,
                         score=0,
                         summary="LLM scoring failed.",
-                        warnings=warnings + [str(exc)],
+                        warnings=[*warnings, str(exc)],
                     )
                 warnings.append(f"Falling back to heuristic scoring: {exc}")
 
@@ -85,13 +84,7 @@ class CVRanker:
         return heuristic
 
     def _score_with_llm(self, filename: str, cv_text: str, requirements: str) -> CandidateScore:
-        prompt = (
-            "Job requirements:\n"
-            f"{requirements}\n\n"
-            "Candidate CV:\n"
-            f"{cv_text}\n\n"
-            "Return strict JSON only."
-        )
+        prompt = f"Job requirements:\n{requirements}\n\nCandidate CV:\n{cv_text}\n\nReturn strict JSON only."
 
         assert self.llm_client is not None
         response = self.llm_client.generate(prompt=prompt, system=SYSTEM_PROMPT)
@@ -191,8 +184,7 @@ def _extract_required_years(requirements: str) -> float:
 
 def _extract_candidate_years(cv_text: str) -> float:
     candidates = [
-        _to_float(number)
-        for number in re.findall(r"(\d+(?:\.\d+)?)\s*\+?\s*years?", cv_text, flags=re.IGNORECASE)
+        _to_float(number) for number in re.findall(r"(\d+(?:\.\d+)?)\s*\+?\s*years?", cv_text, flags=re.IGNORECASE)
     ]
     return max(candidates, default=0.0)
 
@@ -223,8 +215,7 @@ def _to_float(value: Any) -> float:
 
 def _clamp_score(score: Any) -> int:
     try:
-        value = int(round(float(score)))
+        value = round(float(score))
     except (TypeError, ValueError):
         return 0
     return max(0, min(100, value))
-

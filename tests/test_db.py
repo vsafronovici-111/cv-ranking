@@ -10,11 +10,11 @@ except ImportError:  # pragma: no cover - optional dev/test dependency
 
 from cv_ranker.db import (
     FAILED,
+    MIGRATIONS_DIR,
     PENDING,
     SUCCEEDED,
     CVStore,
     DBSettings,
-    MIGRATIONS_DIR,
     iter_migration_files,
 )
 
@@ -37,7 +37,7 @@ class CVStoreTests(unittest.TestCase):
     independent from one another.
     """
 
-    postgres: "PostgresContainer"
+    postgres: PostgresContainer
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -45,7 +45,7 @@ class CVStoreTests(unittest.TestCase):
             cls.postgres = PostgresContainer("postgres:16-alpine")
             cls.postgres.start()
         except Exception as exc:  # pragma: no cover - environment guard
-            raise unittest.SkipTest(f"Docker not available to run Testcontainers: {exc}")
+            raise unittest.SkipTest(f"Docker not available to run Testcontainers: {exc}") from exc
 
         dsn = cls.postgres.get_connection_url(driver=None)  # postgresql://...
         cls.store = CVStore(DBSettings(dsn=dsn), migrations_dir=MIGRATIONS_DIR)
@@ -131,6 +131,3 @@ class CVStoreTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-

@@ -1,10 +1,75 @@
-Farhan Ali
-Fullstack Developer (Java + Angular)
+---
 
-Experience:
-- 5 years of fullstack development experience
-- Backend: Java, Spring Boot, Kafka, MySQL
-- Frontend: Angular, RxJS, TypeScript
-- Built internal admin tools and customer-facing portals
-- Experience with CI/CD pipelines using Jenkins
+**Farhan Ali**  
+📞 (123) 456-7890 | 📧 farhan.ali@example.com | 📍 London, UK  
+[LinkedIn Profile](https://linkedin.com/in/farhanali) | [GitHub Profile](https://github.com/farhanali)  
 
+---
+
+### **Summary**  
+Experienced Fullstack Developer with 5 years of expertise in building scalable, enterprise-grade applications using Java and Angular. Proficient in backend technologies like Spring Boot, Kafka, and MySQL, and frontend 
+frameworks like Angular, RxJS, and TypeScript. Skilled in developing internal admin tools and customer-facing portals, with hands-on experience in CI/CD pipelines using Jenkins. Committed to delivering high-quality, 
+maintainable solutions through Agile/Scrum methodologies and collaborative teamwork.  
+
+---
+
+### **Professional Experience**  
+
+**Senior Fullstack Developer**  
+*InnovateSoft Technologies* | London, UK | *Jan 2020 – Present*  
+- Designed and developed fullstack applications for enterprise clients, combining Java-based backend systems with Angular frontend interfaces.  
+- Built scalable backend services using Spring Boot, Kafka, and MySQL, ensuring real-time data processing and high availability.  
+- Developed responsive and feature-rich customer-facing portals with Angular, RxJS, and TypeScript, improving user engagement by 30%.  
+- Created internal admin tools for data management and analytics, streamlining workflows for operations teams.  
+- Implemented CI/CD pipelines using Jenkins, reducing deployment time by 40% and improving release reliability.  
+- Collaborated with cross-functional teams in Agile/Scrum environments to deliver end-to-end features from planning to deployment.  
+
+**Fullstack Developer**  
+*CodeForge Solutions* | London, UK | *Jun 2017 – Dec 2019*  
+- Built a SaaS platform for a logistics company using Java, Spring Boot, and MySQL, enabling real-time tracking and analytics.  
+- Developed a dynamic Angular frontend with RxJS and TypeScript, integrating with backend services via REST APIs.  
+- Automated testing and deployment processes using Jenkins, ensuring consistent quality and faster release cycles.  
+- Worked in Agile/Scrum teams to deliver features in two-week sprints, ensuring alignment with product goals and stakeholder feedback.  
+- Optimized database queries and application performance, reducing response times by 25% and improving system scalability.  
+
+---
+
+### **Projects**  
+
+**1. Internal Admin Tool (Spring Boot + Angular)**  
+*Technologies: Java, Spring Boot, Kafka, MySQL, Angular, RxJS, TypeScript, Jenkins*  
+- Built a centralized admin tool for managing user roles, data analytics, and system monitoring across multiple departments.  
+- Integrated Kafka for real-time data streaming between backend services and frontend dashboards.  
+- Implemented CI/CD pipelines with Jenkins for automated testing and deployment.  
+- **Outcome**: Reduced manual data entry by 40% and improved operational efficiency for internal teams.  
+
+**2. Customer-Facing E-Commerce Portal (Spring Boot + Angular)**  
+*Technologies: Java, Spring Boot, MySQL, Angular, TypeScript, REST APIs, Jenkins*  
+- Developed a scalable e-commerce portal with features like product search, cart management, and user authentication.  
+- Secured backend services using Spring Boot and MySQL, ensuring data integrity and performance.  
+- Built a responsive Angular frontend with TypeScript and RxJS for seamless user interactions.  
+- **Outcome**: Increased customer satisfaction by 25% and reduced support tickets by 30%.  
+
+**3. Real-Time Data Processing Platform (Kafka + Angular)**  
+*Technologies: Java, Spring Boot, Kafka, MySQL, Angular, RxJS, TypeScript, Jenkins*  
+- Created a platform for processing and visualizing real-time data from IoT devices, used in a smart city project.  
+- Leveraged Kafka for high-throughput data ingestion and Spring Boot for backend processing.  
+- Implemented Angular dashboards with RxJS for dynamic data updates and user interactions.  
+- **Outcome**: Enabled real-time analytics for city planners, improving decision-making and resource allocation.  
+
+---
+
+### **Skills**  
+- **Backend**: Java, Spring Boot, Kafka, MySQL, REST APIs, OAuth2, JWT  
+- **Frontend**: Angular, RxJS, TypeScript, HTML5, CSS3, SCSS  
+- **Deployment**: Jenkins, CI/CD Pipelines, Docker (basic)  
+- **Tools**: Git, GitHub, Postman, Jira, Figma, IntelliJ IDEA  
+- **Methodologies**: Agile/Scrum, Test-Driven Development (TDD), Clean Code Principles  
+
+---
+
+### **Education**  
+**Bachelor of Science in Computer Science**  
+*University College London (UCL)* | *Graduated: 2017*  
+
+---

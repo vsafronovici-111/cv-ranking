@@ -14,6 +14,7 @@ dependencies = ["openai>=1.30.0", "pydantic-settings>=2.0.0", "psycopg[binary]>=
 [project.optional-dependencies]
 pdf = ["pypdf>=4.0.0"]
 test = ["testcontainers[postgres]>=4.8.0"]
+dev = ["ruff>=0.16.0"]
 
 [project.scripts]
 cv-ranker = "cv_ranker.cli:main"
@@ -23,4 +24,20 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src"]
+
+[tool.ruff.lint]
+# E/F: pycodestyle+pyflakes baseline. I: import sorting. UP: modernize syntax
+# for the py310+ floor. B: flake8-bugbear common bug patterns. BLE: no bare
+# `except Exception` without a documented reason (use `# noqa: BLE001 - why`).
+# SLF: flag reaching into another module's `_private` attributes/methods.
+# RUF: Ruff's own extra checks.
+select = ["E", "F", "I", "UP", "B", "BLE", "SLF", "RUF"]
+
+[tool.ruff.format]
+docstring-code-format = true
 

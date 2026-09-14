@@ -1,8 +1,91 @@
-Alice Johnson
+ALICE JOHNSON
 Senior Backend Engineer
 
-Experience:
-- 7 years of software engineering experience
-- Built event-driven services with Java, Spring Boot, Kafka
-- Worked with PostgreSQL, MongoDB, and Redis
+alice.johnson@email.com | +1 (555) 123-4567 | Chisinau, Moldova
+linkedin.com/in/alicejohnson | github.com/alicejohnson
 
+================================================================
+PROFESSIONAL SUMMARY
+================================================================
+Senior Backend Engineer with 7 years of experience designing and
+operating event-driven, high-throughput distributed systems.
+Specializes in Java and Spring Boot services built around Kafka,
+with deep experience across PostgreSQL, MongoDB, and Redis. Track
+record of leading services from design through production,
+improving reliability, and mentoring engineers.
+
+================================================================
+CORE SKILLS
+================================================================
+- Languages & Frameworks: Java, Spring Boot, Spring Cloud, Kotlin
+  (working knowledge)
+- Messaging & Streaming: Apache Kafka, Kafka Streams, event-driven
+  architecture, CQRS
+- Data Stores: PostgreSQL, MongoDB, Redis, Elasticsearch
+- Infrastructure: Docker, Kubernetes, AWS (ECS, RDS, S3, SQS),
+  CI/CD (Jenkins, GitHub Actions)
+- Practices: Microservices design, system design, TDD,
+  observability (Grafana, Prometheus, ELK)
+
+================================================================
+PROFESSIONAL EXPERIENCE
+================================================================
+
+Senior Backend Engineer — [Company Name]                2022–Present
+(Placeholder — replace with your real employer)
+- Led design and delivery of an event-driven order-processing
+  platform in Java/Spring Boot backed by Kafka, processing 2M+
+  events/day across 12 microservices.
+- Migrated a monolithic payments module to an asynchronous,
+  event-sourced architecture, cutting P99 latency by 40% and
+  downstream failures by half.
+- Introduced Kafka Streams for real-time fraud-signal aggregation,
+  reducing detection latency from minutes to seconds.
+- Owned data layer strategy across PostgreSQL (transactional data),
+  MongoDB (catalog/document data), and Redis (caching, rate
+  limiting), improving read throughput by 3x.
+- Mentored 4 mid-level engineers and established code review and
+  on-call practices adopted team-wide.
+
+Backend Engineer — [Company Name]                        2019–2022
+(Placeholder — replace with your real employer)
+- Built a notification service (Java, Spring Boot, Kafka) handling
+  email/SMS/push delivery for 1M+ users with retry and dead-letter
+  handling.
+- Designed a Redis-backed rate-limiting and idempotency layer for
+  public APIs, eliminating duplicate-charge incidents.
+- Implemented CDC pipelines (Debezium + Kafka) to sync PostgreSQL
+  data into MongoDB for a reporting service, replacing a brittle
+  nightly batch job.
+- Containerized and migrated legacy services to Docker/Kubernetes,
+  reducing deployment time from 45 to 8 minutes.
+
+Software Engineer — [Company Name]                       2018–2019
+(Placeholder — replace with your real employer)
+- Developed REST APIs in Spring Boot for an internal inventory
+  management system backed by PostgreSQL.
+- Wrote integration and contract tests, raising backend test
+  coverage from 35% to 80%.
+
+================================================================
+SELECTED PROJECTS
+================================================================
+
+Real-Time Analytics Pipeline — Personal / Open Source        2023
+- Built an end-to-end event pipeline with Kafka, Kafka Streams, and
+  PostgreSQL to compute rolling metrics from simulated clickstream
+  data.
+- Containerized with Docker Compose and added Grafana dashboards
+  for pipeline health monitoring.
+
+Distributed Rate Limiter Library — Open Source (GitHub)      2021
+- Authored a Redis-backed distributed rate-limiting library for
+  Spring Boot, supporting sliding-window and token-bucket
+  strategies.
+- Published with documentation and test suite; adopted internally
+  across two teams.
+
+================================================================
+EDUCATION
+================================================================
+B.Sc. in Computer Science — [University Name], 2014–2018

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from cv_ranker.ranker import CVRanker, RankConfig
 
@@ -10,8 +10,7 @@ class RankerTests(unittest.TestCase):
     def setUp(self) -> None:
         self.cv_folder = Path(__file__).parent / "fixtures" / "cvs"
         self.requirements = (
-            "Minimum 5 years of experience, required skills: "
-            "Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis"
+            "Minimum 5 years of experience, required skills: Java, Spring Boot, Kafka, PostgreSQL, MongoDB, Redis"
         )
 
     def test_heuristic_ranks_best_candidate_first(self) -> None:
@@ -39,7 +38,5 @@ class RankerTests(unittest.TestCase):
         self.assertEqual(bob.score, 0)
 
 
-
 if __name__ == "__main__":
     unittest.main()
-

@@ -1,10 +1,78 @@
-Elena Petrova
-Fullstack Developer (Java + React)
+---
 
-Experience:
-- 6 years of fullstack software development
-- Backend: Java, Spring Boot, REST APIs, PostgreSQL
-- Frontend: React, Redux, TypeScript
-- Deployed microservices with Docker and Kubernetes
-- Worked in Agile/Scrum teams delivering end-to-end features
+**Elena Petrova**  
+📞 (123) 456-7890 | 📧 elena.petrova@example.com | 📍 Moscow, Russia  
+[LinkedIn Profile](https://linkedin.com/in/elenapetrova) | [GitHub Profile](https://github.com/elenapetrova)  
 
+---
+
+### **Summary**  
+Versatile and driven Fullstack Developer with 6 years of experience building end-to-end software solutions. Proficient in Java, Spring Boot, REST APIs, and PostgreSQL for backend development, and skilled in React, Redux, 
+and TypeScript for frontend applications. Experienced in deploying scalable microservices using Docker and Kubernetes, and collaborating in Agile/Scrum teams to deliver high-quality, user-centric features. Committed to 
+writing clean, efficient code and leveraging modern technologies to solve complex problems.  
+
+---
+
+### **Professional Experience**  
+
+**Senior Fullstack Developer**  
+*TechFusion Solutions* | Moscow, Russia | *Jan 2020 – Present*  
+- Designed and implemented fullstack applications for enterprise clients, combining Java-based backend systems with React frontend interfaces.  
+- Built and deployed RESTful APIs using Spring Boot and PostgreSQL, ensuring secure, scalable, and high-performance backend services.  
+- Developed feature-rich user interfaces with React, Redux, and TypeScript, improving application responsiveness and user engagement.  
+- Containerized and orchestrated microservices using Docker and Kubernetes, reducing deployment time by 40% and improving system reliability.  
+- Collaborated with cross-functional teams in Agile/Scrum environments to deliver end-to-end features, from planning to deployment.  
+- Conducted code reviews, performance optimizations, and technical documentation to ensure maintainability and knowledge sharing.  
+
+**Fullstack Developer**  
+*CodeMinds Lab* | Moscow, Russia | *Jun 2017 – Dec 2019*  
+- Built a SaaS platform for a logistics company using Java, Spring Boot, and PostgreSQL, enabling real-time tracking and analytics.  
+- Created a responsive React frontend with Redux and TypeScript, integrating with backend services via REST APIs.  
+- Implemented CI/CD pipelines using Docker and Jenkins, automating testing and deployment processes.  
+- Worked in Agile/Scrum teams to deliver features in two-week sprints, ensuring alignment with product goals and stakeholder feedback.  
+- Optimized database queries and application performance, reducing response times by 30% and improving system scalability.  
+
+---
+
+### **Projects**  
+
+**1. Enterprise Resource Planning (ERP) System**  
+*Technologies: Java, Spring Boot, PostgreSQL, React, Redux, TypeScript, Docker, Kubernetes*  
+- Developed a fullstack ERP system for a manufacturing client, enabling inventory management, order tracking, and reporting.  
+- Built a modular backend with Spring Boot and PostgreSQL, ensuring scalability and data integrity.  
+- Created a dynamic frontend with React and Redux, allowing users to customize dashboards and workflows.  
+- Deployed the application using Docker and Kubernetes, ensuring high availability and fault tolerance.  
+- **Outcome**: Reduced manual data entry by 50% and improved operational efficiency for the client.  
+
+**2. E-Commerce SaaS Platform**  
+*Technologies: Java, Spring Boot, PostgreSQL, React, TypeScript, Docker*  
+- Built a scalable SaaS platform for e-commerce businesses, featuring product management, user authentication, and analytics.  
+- Implemented RESTful APIs with Spring Boot and secured them using OAuth2 and JWT.  
+- Developed a reusable React frontend with TypeScript, enabling seamless integration with third-party services.  
+- Containerized the application using Docker and deployed it on Kubernetes, ensuring rapid scaling during peak traffic.  
+- **Outcome**: Increased client onboarding speed by 35% and reduced server costs by 25%.  
+
+**3. Fintech Dashboard Application**  
+*Technologies: Java, Spring Boot, PostgreSQL, React, Redux, TypeScript, Docker*  
+- Created a real-time financial dashboard for a fintech startup, displaying stock prices, transaction history, and investment metrics.  
+- Built a backend with Spring Boot and PostgreSQL, handling large datasets and real-time updates.  
+- Developed a frontend with React and Redux, ensuring smooth user interactions and responsive design.  
+- Deployed the application using Docker, ensuring consistent performance across development and production environments.  
+- **Outcome**: Improved data accuracy and user satisfaction, with 90% positive feedback from internal stakeholders.  
+
+---
+
+### **Skills**  
+- **Backend**: Java, Spring Boot, REST APIs, PostgreSQL, OAuth2, JWT  
+- **Frontend**: React, Redux, TypeScript, HTML5, CSS3, SCSS  
+- **Deployment**: Docker, Kubernetes, Jenkins, CI/CD Pipelines  
+- **Tools**: Git, GitHub, Postman, Jira, Figma, IntelliJ IDEA  
+- **Methodologies**: Agile/Scrum, Test-Driven Development (TDD), Clean Code Principles  
+
+---
+
+### **Education**  
+**Bachelor of Science in Computer Science**  
+*Moscow State University (MSU)* | *Graduated: 2017*  
+
+---

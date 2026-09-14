@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
@@ -158,5 +159,3 @@ class CVStore:
         with self._conn() as conn:
             rows = conn.execute("SELECT status, count(*) AS count FROM cvs GROUP BY status").fetchall()
             return {row["status"]: row["count"] for row in rows}
-
-

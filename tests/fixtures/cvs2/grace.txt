@@ -1,12 +1,75 @@
-Grace Oduya
-Fullstack Developer (Node.js + React)
+---
 
-Experience:
-- 5 years of fullstack JS development
-- Backend: Node.js, Express, MongoDB, REST and GraphQL APIs
-- Frontend: React, Redux, TypeScript
-- Built real-time features using WebSockets and Socket.IO
-- Deployed applications on AWS (EC2, Lambda, S3)
+**Grace Oduya**  
+📞 (123) 456-7890 | 📧 grace.oduya@example.com | 📍 Lagos, Nigeria  
+[LinkedIn Profile](https://linkedin.com/in/graceoduya) | [GitHub Profile](https://github.com/graceoduya)  
 
+---
 
+### **Summary**  
+Results-driven Fullstack Developer with 5 years of hands-on experience in fullstack JavaScript development. Specialized in building scalable applications using Node.js, Express, MongoDB, React, Redux, and TypeScript. 
+Proficient in designing REST and GraphQL APIs, implementing real-time features with WebSockets and Socket.IO, and deploying applications on AWS (EC2, Lambda, S3). Passionate about delivering high-performance, user-centric 
+solutions through collaboration, innovation, and adherence to best practices.  
 
+---
+
+### **Professional Experience**  
+
+**Senior Fullstack Developer**  
+*TechNova Solutions* | Lagos, Nigeria | *Jan 2020 – Present*  
+- Led the development of fullstack applications for enterprise clients, combining Node.js-based backend systems with React frontend interfaces.  
+- Built REST and GraphQL APIs using Node.js and Express, enabling seamless data integration between frontend and backend services.  
+- Designed and implemented real-time features using WebSockets and Socket.IO for a collaborative workspace application, improving user interaction by 40%.  
+- Deployed applications on AWS (EC2, Lambda, S3), optimizing costs by 30% through serverless architecture and auto-scaling configurations.  
+- Collaborated with cross-functional teams in Agile/Scrum environments to deliver end-to-end features, from planning to deployment.  
+- Conducted code reviews, performance optimizations, and technical documentation to ensure maintainability and knowledge sharing.  
+
+**Fullstack Developer**  
+*CodeForge Labs* | Lagos, Nigeria | *Jun 2017 – Dec 2019*  
+- Developed a scalable e-commerce platform using Node.js, Express, MongoDB, and React, enabling real-time inventory updates and user notifications.  
+- Built a real-time chat application with Socket.IO, allowing users to communicate instantly within a project management tool.  
+- Automated testing and deployment processes using AWS Lambda and Jenkins, reducing deployment time by 25%.  
+- Worked in Agile/Scrum teams to deliver features in two-week sprints, ensuring alignment with product goals and stakeholder feedback.  
+- Optimized MongoDB queries and application performance, reducing response times by 20% and improving system scalability.  
+
+---
+
+### **Projects**  
+
+**1. Real-Time Collaboration Workspace (Node.js + React + Socket.IO)**  
+*Technologies: Node.js, Express, MongoDB, React, Redux, TypeScript, Socket.IO, AWS (EC2, Lambda)*  
+- Built a real-time collaboration platform for teams to edit documents, share ideas, and track progress.  
+- Implemented real-time updates using Socket.IO, ensuring seamless synchronization across multiple users.  
+- Deployed the application on AWS, leveraging EC2 for backend services and Lambda for serverless functions.  
+- **Outcome**: Improved team productivity by 35% and reduced feature development time by 20%.  
+
+**2. E-Commerce Platform with GraphQL API**  
+*Technologies: Node.js, Express, MongoDB, React, Redux, TypeScript, GraphQL, AWS (S3)*  
+- Developed a fullstack e-commerce platform with features like product search, cart management, and user authentication.  
+- Built a GraphQL API using Node.js and Express, enabling efficient data fetching and reducing frontend API calls by 40%.  
+- Hosted static assets on AWS S3 and optimized image delivery for faster load times.  
+- **Outcome**: Increased user engagement by 25% and reduced server costs by 15%.  
+
+**3. Real-Time Chat Application (Node.js + React + Socket.IO)**  
+*Technologies: Node.js, Express, MongoDB, React, TypeScript, Socket.IO, AWS (EC2)*  
+- Created a real-time chat application for a healthcare startup, allowing doctors and patients to communicate securely.  
+- Implemented WebSockets with Socket.IO for instant messaging and notification systems.  
+- Deployed the backend on AWS EC2 with auto-scaling to handle high traffic during peak hours.  
+- **Outcome**: Improved patient satisfaction by 30% and reduced response times by 25%.  
+
+---
+
+### **Skills**  
+- **Backend**: Node.js, Express, MongoDB, REST APIs, GraphQL, WebSockets, Socket.IO  
+- **Frontend**: React, Redux, TypeScript, HTML5, CSS3, SCSS  
+- **Deployment**: AWS (EC2, Lambda, S3), CI/CD Pipelines, Docker (basic)  
+- **Tools**: Git, GitHub, Postman, Jira, Figma, VS Code  
+- **Methodologies**: Agile/Scrum, Test-Driven Development (TDD), Clean Code Principles  
+
+---
+
+### **Education**  
+**Bachelor of Science in Computer Science**  
+*University of Lagos (UNILAG)* | *Graduated: 2017*  
+
+---

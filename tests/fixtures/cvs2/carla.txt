@@ -1,10 +1,70 @@
-Carla Mendes
-Frontend Web Developer (React & Angular)
+---
 
-Experience:
-- 6 years of frontend web development experience
-- Extensive work with React, Redux, and React Router building SPAs
-- Also built enterprise dashboards using Angular and RxJS
-- Strong in TypeScript, HTML5, CSS3, and responsive design
-- Collaborated with backend teams via REST APIs
+**Carla Mendes**  
+📞 (123) 456-7890 | 📧 carla.mendes@example.com | 📍 São Paulo, Brazil  
+[LinkedIn Profile](https://linkedin.com/in/carlamendes) | [GitHub Profile](https://github.com/carlamendes)  
 
+---
+
+### **Summary**  
+Highly skilled Frontend Web Developer with 6 years of experience building scalable and user-centric web applications. Proficient in React, Redux, React Router, and Angular, with a strong focus on creating single-page 
+applications (SPAs) and enterprise dashboards. Expert in TypeScript, HTML5, CSS3, and responsive design, with a proven ability to collaborate with backend teams to deliver seamless user experiences through RESTful APIs. 
+Committed to writing clean, maintainable code and staying up-to-date with modern frontend development practices.  
+
+---
+
+### **Professional Experience**  
+
+**Senior Frontend Developer**  
+*InnovateTech Solutions* | São Paulo, Brazil | *Jan 2020 – Present*  
+- Led the development of multiple SPAs using React, Redux, and React Router, improving application performance by 25% through state management optimization and lazy loading techniques.  
+- Built enterprise-level dashboards for a financial services client using Angular and RxJS, enabling real-time data visualization and complex filtering capabilities.  
+- Collaborated closely with backend teams to design and implement RESTful APIs, ensuring seamless integration between frontend and backend systems.  
+- Mentored junior developers and conducted code reviews to maintain high coding standards and best practices.  
+- Implemented responsive design principles across all projects, ensuring cross-browser compatibility and accessibility compliance.  
+
+**Frontend Developer**  
+*WebCraft Studio* | São Paulo, Brazil | *Jun 2017 – Dec 2019*  
+- Developed and maintained a suite of SPAs for e-commerce and SaaS clients using React, Redux, and TypeScript, resulting in a 30% increase in user engagement.  
+- Built a large-scale Angular application for a healthcare provider, leveraging RxJS for efficient data handling and event management.  
+- Integrated third-party libraries (e.g., Chart.js, Material UI) to enhance UI/UX and deliver interactive features.  
+- Optimized frontend performance through code splitting, caching strategies, and lazy loading, reducing page load times by 20%.  
+
+---
+
+### **Projects**  
+
+**1. Financial Dashboard (Angular + RxJS)**  
+*Technologies: Angular, RxJS, TypeScript, Material UI, REST APIs*  
+- Developed a real-time financial dashboard for a major bank, enabling users to monitor stock prices, transaction history, and portfolio performance.  
+- Implemented complex data pipelines using RxJS, allowing for efficient handling of large datasets and real-time updates.  
+- **Outcome**: Improved data accuracy and user satisfaction, with 95% positive feedback from internal stakeholders.  
+
+**2. E-Commerce Platform (React + Redux)**  
+*Technologies: React, Redux, TypeScript, React Router, REST APIs*  
+- Built a scalable e-commerce platform with features like product search, cart management, and user authentication.  
+- Integrated Redux for state management, ensuring a smooth user experience across multiple pages and components.  
+- **Outcome**: Increased conversion rates by 15% during the platform's first year of deployment.  
+
+**3. Healthcare Management System (Angular + RxJS)**  
+*Technologies: Angular, RxJS, TypeScript, Firebase*  
+- Designed and developed a healthcare management system for a hospital, allowing doctors and staff to manage patient records, appointments, and diagnostics.  
+- Used RxJS for asynchronous data handling and event-driven architecture, improving system responsiveness.  
+- **Outcome**: Reduced administrative workload by 30% and improved data accessibility for medical teams.  
+
+---
+
+### **Skills**  
+- **Frontend**: React, Redux, React Router, Angular, RxJS, TypeScript  
+- **UI/UX**: HTML5, CSS3, SCSS, Responsive Design, Material UI, Figma  
+- **Backend Integration**: RESTful APIs, JSON, GraphQL (basic)  
+- **Tools**: Git, GitHub, npm, Postman, Jira, Webpack  
+- **Other**: Agile/Scrum, Cross-functional teamwork, Code review, Technical documentation  
+
+---
+
+### **Education**  
+**Bachelor of Science in Computer Engineering**  
+*Universidade de São Paulo (USP)* | *Graduated: 2017*  
+
+---
