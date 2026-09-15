@@ -5,6 +5,7 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,23 @@ PENDING = "PENDING"
 PROCESSING = "PROCESSING"
 SUCCEEDED = "SUCCEEDED"
 FAILED = "FAILED"
+
+
+@dataclass
+class Conversation:
+    id: int
+    user_id: str
+    name: str | None
+    created_at: datetime
+
+
+@dataclass
+class Message:
+    id: int
+    conversation_id: int
+    role: str
+    content: str
+    created_at: datetime
 
 
 class CVStore:
@@ -159,3 +177,87 @@ class CVStore:
         with self._conn() as conn:
             rows = conn.execute("SELECT status, count(*) AS count FROM cvs GROUP BY status").fetchall()
             return {row["status"]: row["count"] for row in rows}
+
+    def create_conversation(self, user_id: str, name: str | None = None) -> int:
+        """Insert a new conversation. Returns the new conversation's id."""
+        with self._conn() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO conversations (user_id, name)
+                VALUES (%s, %s)
+                RETURNING id
+                """,
+                (user_id, name),
+            )
+            return cur.fetchone()["id"]
+
+    def get_conversation(self, conversation_id: int) -> Conversation | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT id, user_id, name, created_at FROM conversations WHERE id = %s",
+                (conversation_id,),
+            ).fetchone()
+            return Conversation(**row) if row else None
+
+    def list_conversations_by_user(self, user_id: str) -> list[Conversation]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, user_id, name, created_at FROM conversations
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                """,
+                (user_id,),
+            ).fetchall()
+            return [Conversation(**row) for row in rows]
+
+    def update_conversation_name(self, conversation_id: int, name: str) -> bool:
+        """Rename an existing conversation. Returns False if no such conversation exists."""
+        with self._conn() as conn:
+            cur = conn.execute(
+                "UPDATE conversations SET name = %s WHERE id = %s",
+                (name, conversation_id),
+            )
+            return cur.rowcount > 0
+
+    def create_message(self, conversation_id: int, role: str, content: str) -> int:
+        """Insert a new message under a conversation. Returns the new message's id."""
+        with self._conn() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO messages (conversation_id, role, content)
+                VALUES (%s, %s, %s)
+                RETURNING id
+                """,
+                (conversation_id, role, content),
+            )
+            return cur.fetchone()["id"]
+
+    def get_message(self, message_id: int) -> Message | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT id, conversation_id, role, content, created_at FROM messages WHERE id = %s",
+                (message_id,),
+            ).fetchone()
+            return Message(**row) if row else None
+
+    def list_messages_by_conversation(self, conversation_id: int) -> list[Message]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, conversation_id, role, content, created_at FROM messages
+                WHERE conversation_id = %s
+                ORDER BY created_at ASC
+                """,
+                (conversation_id,),
+            ).fetchall()
+            return [Message(**row) for row in rows]
+
+    def update_message_content(self, message_id: int, content: str) -> bool:
+        """Update a message's content. Returns False if no such message exists."""
+        with self._conn() as conn:
+            cur = conn.execute(
+                "UPDATE messages SET content = %s WHERE id = %s",
+                (content, message_id),
+            )
+            return cur.rowcount > 0

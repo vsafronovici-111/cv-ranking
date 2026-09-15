@@ -221,6 +221,94 @@ Postgres `cvs.id`), `cv_file_name`, and `chunk_type`, plus the similarity
 appear more than once in the results (e.g. matching on both `summary` and
 `technologies`).
 
+## REST API
+
+A minimal [FastAPI](https://fastapi.tiangolo.com) app under `src/api/rest/`
+exposes conversations/messages over HTTP, backed by the same
+`cv_ranker.db.CVStore` Postgres store as the CLI — migrations
+(`db/migrations/*.sql`) are applied automatically on every API startup, the
+same way the CLI applies them on every invocation.
+
+Run it (requires Postgres running, see [Database setup](#database-setup)):
+
+```bash
+cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv-rank
+python3 -m pip install -e .
+PYTHONPATH=src python3 -m uvicorn api.rest.app:app --port 8000
+```
+
+CORS is enabled for `http://localhost:3000` (the `web/` frontend's dev
+server). Delete endpoints are intentionally not implemented for either
+resource.
+
+### Health check
+
+`GET /`
+
+```bash
+curl http://localhost:8000/
+```
+
+### Conversations
+
+`POST /conversations` — create a conversation.
+
+```bash
+curl -X POST http://localhost:8000/conversations \
+  -H 'Content-Type: application/json' \
+  -d '{"user_id": "user-42", "name": "First chat"}'
+```
+
+`GET /conversations?user_id=...` — list a user's conversations.
+
+```bash
+curl "http://localhost:8000/conversations?user_id=user-42"
+```
+
+`GET /conversations/{conversation_id}` — get a single conversation.
+
+```bash
+curl http://localhost:8000/conversations/1
+```
+
+`PATCH /conversations/{conversation_id}` — rename a conversation.
+
+```bash
+curl -X PATCH http://localhost:8000/conversations/1 \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "Renamed chat"}'
+```
+
+### Messages
+
+`POST /conversations/{conversation_id}/messages` — add a message to a conversation.
+
+```bash
+curl -X POST http://localhost:8000/conversations/1/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"role": "user", "content": "Hello!"}'
+```
+
+`GET /conversations/{conversation_id}/messages` — list a conversation's messages.
+
+```bash
+curl http://localhost:8000/conversations/1/messages
+```
+
+`GET /messages/{message_id}` — get a single message.
+
+```bash
+curl http://localhost:8000/messages/1
+```
+
+`PATCH /messages/{message_id}` — edit a message's content.
+
+```bash
+curl -X PATCH http://localhost:8000/messages/1 \
+  -H 'Content-Type: application/json' \
+  -d '{"content": "Hello, edited!"}'
+```
+
 ## Test
 
 ```bash

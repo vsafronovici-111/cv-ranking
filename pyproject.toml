@@ -38,6 +38,12 @@ src = ["src"]
 # RUF: Ruff's own extra checks.
 select = ["E", "F", "I", "UP", "B", "BLE", "SLF", "RUF"]
 
+# FastAPI's `Depends(...)`/`Query(...)`/etc. default-argument idiom is the
+# framework's intended pattern (docs use it directly), not the mutable-
+# default-argument bug B008 exists to catch.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
+
 [tool.ruff.format]
 docstring-code-format = true
 
