@@ -63,6 +63,16 @@ Schema changes live as plain, ordered SQL files in `db/migrations/*.sql` (see
 re-run) and are reused as-is by the db-layer unit tests in `tests/test_db.py`
 so the schema under test always matches production/local.
 
+### Kafka setup
+
+The REST API publishes a Kafka event every time a chat message is created.
+`docker compose up -d` (same compose file as Postgres/Qdrant) also starts a
+single-node Kafka broker (KRaft mode, no ZooKeeper) on `localhost:9092`, plus
+[Kafka UI](https://github.com/provectus/kafka-ui) on
+[http://localhost:8081](http://localhost:8081) for browsing topics/messages.
+It matches the default `CV_RANKER_KAFKA_BOOTSTRAP_SERVERS` in
+`config/local.env.example`.
+
 ## Configuration (local vs prod)
 
 Settings are resolved by `cv_ranker.config.load_llm_settings()`, backed by
@@ -91,6 +101,8 @@ Once the environment is picked, pydantic-settings resolves each field with this 
 | `CV_RANKER_EMBEDDING_API_KEY` | `ollama`                     | `EMPTY`                          |
 | `CV_RANKER_EMBEDDING_MODEL`   | `qwen3-embedding:4b`         | `Qwen/Qwen3-Embedding-4B`        |
 | `CV_RANKER_EMBEDDING_TIMEOUT_SECONDS` | `90`                 | `90`                             |
+| `CV_RANKER_LOG_LEVEL`         | `DEBUG`                      | `INFO`                           |
+| `CV_RANKER_KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092`       | (override in `config/prod.env`)  |
 
 Example config files are provided:
 
@@ -105,6 +117,17 @@ cp config/prod.env.example config/prod.env
 ```
 
 CLI flags always win over environment variables: `--model`, `--base-url`, `--api-key`, `--timeout`, `--dsn`.
+
+### Logging
+
+`cv_ranker.logging_config.configure_logging()` configures the root logger's
+level from `load_logging_settings()` — resolved the same way as the other
+settings (`CV_RANKER_LOG_LEVEL` env var, or `config/<env>.env`), defaulting
+to `DEBUG` locally and `INFO` in prod. Both the CLI (`main()`) and the REST
+API (its startup `lifespan`) call it once at process startup. It currently
+just logs to stderr via `logging.basicConfig`; the intent is to swap in
+centralized log shipping (e.g. a log aggregator) later by changing only
+this one function, not every call site.
 
 ## Run
 
@@ -227,9 +250,11 @@ A minimal [FastAPI](https://fastapi.tiangolo.com) app under `src/api/rest/`
 exposes conversations/messages over HTTP, backed by the same
 `cv_ranker.db.CVStore` Postgres store as the CLI — migrations
 (`db/migrations/*.sql`) are applied automatically on every API startup, the
-same way the CLI applies them on every invocation.
+same way the CLI applies them on every invocation. Creating a message also
+publishes it to Kafka — see [Chat message events (Kafka)](#chat-message-events-kafka).
 
-Run it (requires Postgres running, see [Database setup](#database-setup)):
+Run it (requires Postgres and Kafka running, see [Database setup](#database-setup)
+and [Kafka setup](#kafka-setup)):
 
 ```bash
 cd /Users/vitaliesafronovici/Documents/work/dev/work/projects/python/ai-agent-cv-rank
@@ -308,6 +333,34 @@ curl -X PATCH http://localhost:8000/messages/1 \
   -H 'Content-Type: application/json' \
   -d '{"content": "Hello, edited!"}'
 ```
+
+### Chat message events (Kafka)
+
+Every `POST /conversations/{conversation_id}/messages` call also publishes
+the created message as a JSON event to the `chat-messages` Kafka topic, via
+`cv_ranker.kafka_producer.ChatMessageProducer` (created once at API startup,
+closed at shutdown — see `src/api/rest/app.py`'s `lifespan`). Requires the
+Kafka broker running (see [Kafka setup](#kafka-setup)).
+
+`src/consumer/chat_message_consumer.py` has a `ChatMessageConsumer` class
+that subscribes to `chat-messages` and logs each event; for now that's all
+it does. The API's `lifespan` also starts it automatically — as a background
+thread — alongside the producer, and stops it cleanly on shutdown, so it
+needs no separate process for local dev.
+
+It can still be run as its own standalone process (e.g. to scale consumption
+independently of the API in a real deployment):
+
+```bash
+PYTHONPATH=src python3 -m consumer
+```
+
+Don't run the standalone process *and* the API at the same time against the
+same Kafka broker unless you also give it a distinct `group_id`
+(`KafkaConsumerConfig.group_id`, default `"chat-message-consumer"`) — the
+`chat-messages` topic has a single partition, so two consumers sharing one
+group id will silently split it: only one of them will ever receive
+messages, and the other will sit idle.
 
 ## Test
 

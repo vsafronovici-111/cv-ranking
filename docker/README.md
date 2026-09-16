@@ -66,3 +66,26 @@ curl -H "api-key: <your-key>" http://localhost:6333/collections
 To fully reset the vector store, stop the container and delete the contents
 of `docker/volume/qdrant/qdata/` (everything except `.gitkeep`).
 
+## Kafka (chat message events)
+
+Starts a single-node [Kafka](https://kafka.apache.org) broker in KRaft mode
+(no ZooKeeper), persisting data to `docker/volume/kafka` (gitignored), plus
+[Kafka UI](https://github.com/provectus/kafka-ui) for browsing topics.
+Started together with Postgres/Qdrant via the same `docker compose up -d`
+command above.
+
+Default endpoints:
+
+```
+Broker:   localhost:9092
+Kafka UI: http://localhost:8081
+```
+
+Matches the default `CV_RANKER_KAFKA_BOOTSTRAP_SERVERS` in
+`config/local.env.example`. The REST API publishes to (and
+`src/consumer/chat_message_consumer.py` consumes from) the `chat-messages`
+topic; topics are auto-created on first publish, no manual setup needed.
+
+To fully reset Kafka, stop the container and delete the contents of
+`docker/volume/kafka/` (everything except `.gitkeep`).
+

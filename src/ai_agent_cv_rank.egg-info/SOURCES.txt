@@ -10,6 +10,9 @@ src/api/__init__.py
 src/api/rest/__init__.py
 src/api/rest/__main__.py
 src/api/rest/app.py
+src/consumer/__init__.py
+src/consumer/__main__.py
+src/consumer/chat_message_consumer.py
 src/cv_ranker/__init__.py
 src/cv_ranker/__main__.py
 src/cv_ranker/cli.py
@@ -17,9 +20,12 @@ src/cv_ranker/config.py
 src/cv_ranker/cv_structurer.py
 src/cv_ranker/db.py
 src/cv_ranker/embedding_client.py
+src/cv_ranker/kafka_producer.py
 src/cv_ranker/llm_client.py
+src/cv_ranker/logging_config.py
 src/cv_ranker/parsing.py
 src/cv_ranker/qdrant_store.py
 src/cv_ranker/ranker.py
 tests/test_db.py
+tests/test_logging_config.py
 tests/test_ranker.py

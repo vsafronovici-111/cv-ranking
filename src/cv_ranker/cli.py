@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import uuid
 from collections.abc import Sequence
 from dataclasses import asdict
@@ -12,9 +13,12 @@ from cv_ranker.cv_structurer import extract_cv_structure
 from cv_ranker.db import FAILED, PENDING, CVStore, DBSettings
 from cv_ranker.embedding_client import EmbeddingClient, EmbeddingClientConfig, EmbeddingClientError
 from cv_ranker.llm_client import LLMClient, LLMClientConfig, LLMClientError
+from cv_ranker.logging_config import configure_logging
 from cv_ranker.parsing import iter_cv_files, parse_cv_bytes
 from cv_ranker.qdrant_store import CVVectorStore, CVVectorStoreError, QdrantSettings
 from cv_ranker.ranker import CandidateScore, CVRanker, RankConfig
+
+logger = logging.getLogger(__name__)
 
 CV_CHUNK_ID_NAMESPACE = uuid.UUID("2f3b6f1a-6c3e-4a86-9f0b-2f7f6f3c6d21")
 
@@ -83,6 +87,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    configure_logging(args.env)
+    logger.info("Running command %r (env=%s)", args.command, args.env or "local")
 
     if args.command == "find":
         return _run_find(args)

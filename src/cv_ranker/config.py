@@ -207,6 +207,82 @@ _EMBEDDING_SETTINGS_CLASS_BY_ENV: dict[str, type[EmbeddingSettingsBase]] = {
 }
 
 
+class LoggingSettingsBase(BaseSettings):
+    """Resolved logging settings for a given environment."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_LOG_",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    level: str = "INFO"
+
+
+class LocalLoggingSettings(LoggingSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_LOG_",
+        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    level: str = "DEBUG"
+
+
+class ProdLoggingSettings(LoggingSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_LOG_",
+        env_file=str(_CONFIG_DIR / "prod.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    level: str = "INFO"
+
+
+_LOGGING_SETTINGS_CLASS_BY_ENV: dict[str, type[LoggingSettingsBase]] = {
+    "local": LocalLoggingSettings,
+    "prod": ProdLoggingSettings,
+}
+
+
+class KafkaSettingsBase(BaseSettings):
+    """Resolved Kafka connection settings for a given environment."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_KAFKA_",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    bootstrap_servers: str = "localhost:9092"
+
+
+class LocalKafkaSettings(KafkaSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_KAFKA_",
+        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class ProdKafkaSettings(KafkaSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_KAFKA_",
+        env_file=str(_CONFIG_DIR / "prod.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+_KAFKA_SETTINGS_CLASS_BY_ENV: dict[str, type[KafkaSettingsBase]] = {
+    "local": LocalKafkaSettings,
+    "prod": ProdKafkaSettings,
+}
+
+
 _SETTINGS_CLASS_BY_ENV: dict[str, type[LLMSettings]] = {
     "local": LocalLLMSettings,
     "prod": ProdLLMSettings,
@@ -292,6 +368,41 @@ def load_embedding_settings(env_name: str | None = None) -> EmbeddingSettingsBas
     settings_cls = _EMBEDDING_SETTINGS_CLASS_BY_ENV.get(resolved_env)
     if settings_cls is None:
         valid = ", ".join(sorted(_EMBEDDING_SETTINGS_CLASS_BY_ENV))
+        raise ValueError(f"Unknown environment '{resolved_env}'. Expected one of: {valid}.")
+
+    return settings_cls()
+
+
+def load_logging_settings(env_name: str | None = None) -> LoggingSettingsBase:
+    """Resolve logging settings for the requested environment.
+
+    Same resolution order as `load_db_settings`: explicit arg ->
+    `CV_RANKER_ENV` -> "local". `level` can be overridden via
+    `CV_RANKER_LOG_LEVEL` or `config/<env>.env`. Defaults to `DEBUG` locally
+    and `INFO` in prod.
+    """
+    resolved_env = (env_name or os.environ.get("CV_RANKER_ENV") or "local").strip().lower()
+
+    settings_cls = _LOGGING_SETTINGS_CLASS_BY_ENV.get(resolved_env)
+    if settings_cls is None:
+        valid = ", ".join(sorted(_LOGGING_SETTINGS_CLASS_BY_ENV))
+        raise ValueError(f"Unknown environment '{resolved_env}'. Expected one of: {valid}.")
+
+    return settings_cls()
+
+
+def load_kafka_settings(env_name: str | None = None) -> KafkaSettingsBase:
+    """Resolve Kafka connection settings for the requested environment.
+
+    Same resolution order as `load_db_settings`: explicit arg ->
+    `CV_RANKER_ENV` -> "local". `bootstrap_servers` can be overridden via
+    `CV_RANKER_KAFKA_BOOTSTRAP_SERVERS` or `config/<env>.env`.
+    """
+    resolved_env = (env_name or os.environ.get("CV_RANKER_ENV") or "local").strip().lower()
+
+    settings_cls = _KAFKA_SETTINGS_CLASS_BY_ENV.get(resolved_env)
+    if settings_cls is None:
+        valid = ", ".join(sorted(_KAFKA_SETTINGS_CLASS_BY_ENV))
         raise ValueError(f"Unknown environment '{resolved_env}'. Expected one of: {valid}.")
 
     return settings_cls()

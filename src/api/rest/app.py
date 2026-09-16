@@ -1,20 +1,44 @@
+import logging
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import psycopg
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from cv_ranker.config import load_db_settings
+from consumer.chat_message_consumer import ChatMessageConsumer, KafkaConsumerConfig
+from cv_ranker.config import load_db_settings, load_kafka_settings
 from cv_ranker.db import Conversation, CVStore, DBSettings, Message
+from cv_ranker.kafka_producer import ChatMessageProducer, KafkaProducerConfig
+from cv_ranker.logging_config import configure_logging
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    configure_logging()
+    logger.info("Starting up: applying database migrations")
     db_settings = load_db_settings()
     CVStore(DBSettings(dsn=db_settings.dsn)).init_schema()
+
+    kafka_bootstrap_servers = load_kafka_settings().bootstrap_servers
+    app.state.chat_message_producer = ChatMessageProducer(
+        KafkaProducerConfig(bootstrap_servers=kafka_bootstrap_servers)
+    )
+
+    chat_message_consumer = ChatMessageConsumer(KafkaConsumerConfig(bootstrap_servers=kafka_bootstrap_servers))
+    consumer_thread = threading.Thread(target=chat_message_consumer.run, name="chat-message-consumer", daemon=True)
+    consumer_thread.start()
+
+    logger.info("Startup complete")
     yield
+
+    app.state.chat_message_producer.close()
+    chat_message_consumer.stop()
+    consumer_thread.join(timeout=5)
 
 
 app = FastAPI(lifespan=lifespan)
@@ -29,6 +53,10 @@ app.add_middleware(
 
 def get_store() -> CVStore:
     return CVStore(DBSettings(dsn=load_db_settings().dsn))
+
+
+def get_producer(request: Request) -> ChatMessageProducer:
+    return request.app.state.chat_message_producer
 
 
 @app.get("/")
@@ -84,12 +112,19 @@ def update_conversation(
 
 
 @app.post("/conversations/{conversation_id}/messages", status_code=201)
-def create_message(conversation_id: int, body: MessageCreate, store: CVStore = Depends(get_store)) -> Message:
+def create_message(
+    conversation_id: int,
+    body: MessageCreate,
+    store: CVStore = Depends(get_store),
+    producer: ChatMessageProducer = Depends(get_producer),
+) -> Message:
     try:
         message_id = store.create_message(conversation_id, body.role, body.content)
     except psycopg.errors.ForeignKeyViolation as exc:
         raise HTTPException(status_code=404, detail="Conversation not found") from exc
-    return store.get_message(message_id)
+    message = store.get_message(message_id)
+    producer.publish_message(message)
+    return message
 
 
 @app.get("/conversations/{conversation_id}/messages")
