@@ -45,5 +45,21 @@ class ChatMessageProducer:
         except KafkaError as exc:
             raise ChatMessageProducerError(f"Failed to publish message {message.id}: {exc}") from exc
 
+    def publish_assistant_reply(self, conversation_id: int, content: str) -> None:
+        """Publish an AI-generated reply that doesn't have a `messages` row yet.
+
+        Unlike `publish_message`, there's no `id`/`created_at` here — the
+        consumer's `_on_ai_model_response` is what persists this as a new
+        `messages` row once it picks the event back up.
+        """
+        payload = {"conversation_id": conversation_id, "role": "assistant", "content": content}
+        try:
+            future = self._producer.send(CHAT_MESSAGES_TOPIC, value=payload, key=str(conversation_id))
+            future.get(timeout=10)
+        except KafkaError as exc:
+            raise ChatMessageProducerError(
+                f"Failed to publish assistant reply for conversation {conversation_id}: {exc}"
+            ) from exc
+
     def close(self) -> None:
         self._producer.close()

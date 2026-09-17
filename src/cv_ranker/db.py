@@ -12,6 +12,8 @@ from typing import Any
 import psycopg
 from psycopg.rows import dict_row
 
+from cv_ranker.statuses import CVStatus, MessageResponseStatus
+
 
 class CVStoreError(RuntimeError):
     pass
@@ -34,12 +36,6 @@ def iter_migration_files(migrations_dir: Path = MIGRATIONS_DIR) -> list[Path]:
     convention so migrations are always applied in the intended order.
     """
     return sorted(migrations_dir.glob("*.sql"))
-
-
-PENDING = "PENDING"
-PROCESSING = "PROCESSING"
-SUCCEEDED = "SUCCEEDED"
-FAILED = "FAILED"
 
 
 @dataclass
@@ -108,12 +104,12 @@ class CVStore:
                 ON CONFLICT (content_hash) DO NOTHING
                 RETURNING id
                 """,
-                (filename, data, content_hash, PENDING),
+                (filename, data, content_hash, CVStatus.PENDING),
             )
             row = cur.fetchone()
             return row["id"] if row else None
 
-    def claim_next(self, statuses: tuple[str, ...] = (PENDING, FAILED)) -> dict[str, Any] | None:
+    def claim_next(self, statuses: tuple[CVStatus, ...] = (CVStatus.PENDING, CVStatus.FAILED)) -> dict[str, Any] | None:
         """Atomically pick one row to process and mark it PROCESSING.
 
         Uses SELECT ... FOR UPDATE SKIP LOCKED so multiple workers can run
@@ -138,7 +134,7 @@ class CVStore:
                     UPDATE cvs SET status = %s, attempts = attempts + 1, updated_at = now()
                     WHERE id = %s
                     """,
-                    (PROCESSING, row["id"]),
+                    (CVStatus.PROCESSING, row["id"]),
                 )
                 return row
 
@@ -149,7 +145,7 @@ class CVStore:
                 UPDATE cvs SET status = %s, score_json = %s, error_message = NULL, updated_at = now()
                 WHERE id = %s
                 """,
-                (SUCCEEDED, json.dumps(score), cv_id),
+                (CVStatus.SUCCEEDED, json.dumps(score), cv_id),
             )
 
     def mark_failed(self, cv_id: int, error: str) -> None:
@@ -159,10 +155,10 @@ class CVStore:
                 UPDATE cvs SET status = %s, error_message = %s, updated_at = now()
                 WHERE id = %s
                 """,
-                (FAILED, error, cv_id),
+                (CVStatus.FAILED, error, cv_id),
             )
 
-    def fetch_by_status(self, status: str) -> list[dict[str, Any]]:
+    def fetch_by_status(self, status: CVStatus) -> list[dict[str, Any]]:
         with self._conn() as conn:
             return conn.execute(
                 "SELECT id, cv_file_name, status, score_json, error_message, attempts "
@@ -171,7 +167,7 @@ class CVStore:
             ).fetchall()
 
     def fetch_all_succeeded(self) -> list[dict[str, Any]]:
-        return self.fetch_by_status(SUCCEEDED)
+        return self.fetch_by_status(CVStatus.SUCCEEDED)
 
     def counts_by_status(self) -> dict[str, int]:
         with self._conn() as conn:
@@ -253,6 +249,18 @@ class CVStore:
             ).fetchall()
             return [Message(**row) for row in rows]
 
+    def list_messages_before(self, conversation_id: int, created_before: datetime) -> list[Message]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, conversation_id, role, content, created_at FROM messages
+                WHERE conversation_id = %s AND created_at < %s
+                ORDER BY created_at ASC
+                """,
+                (conversation_id, created_before),
+            ).fetchall()
+            return [Message(**row) for row in rows]
+
     def update_message_content(self, message_id: int, content: str) -> bool:
         """Update a message's content. Returns False if no such message exists."""
         with self._conn() as conn:
@@ -261,3 +269,33 @@ class CVStore:
                 (content, message_id),
             )
             return cur.rowcount > 0
+
+    def create_message_response(self, message_id: int) -> int | None:
+        """Insert a PROCESSING message_response row. Returns None if one
+        already exists for this message_id, so callers can skip reprocessing."""
+        with self._conn() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO message_responses (message_id, status)
+                VALUES (%s, %s)
+                ON CONFLICT (message_id) DO NOTHING
+                RETURNING id
+                """,
+                (message_id, MessageResponseStatus.PROCESSING),
+            )
+            row = cur.fetchone()
+            return row["id"] if row else None
+
+    def mark_message_response_succeeded(self, message_id: int) -> None:
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE message_responses SET status = %s, updated_at = now() WHERE message_id = %s",
+                (MessageResponseStatus.SUCCESS, message_id),
+            )
+
+    def mark_message_response_failed(self, message_id: int) -> None:
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE message_responses SET status = %s, updated_at = now() WHERE message_id = %s",
+                (MessageResponseStatus.FAILED, message_id),
+            )

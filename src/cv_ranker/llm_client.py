@@ -16,7 +16,7 @@ class LLMClientConfig:
     base_url: str
     api_key: str
     model: str
-    timeout_seconds: int = 90
+    timeout_seconds: int = 150
 
 
 class LLMClient:
@@ -40,7 +40,10 @@ class LLMClient:
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
+        return self.generate_chat(messages)
 
+    def generate_chat(self, messages: list[dict[str, str]]) -> str:
+        """Like `generate`, but for a full conversation history of `{role, content}` turns."""
         try:
             response = self._client.chat.completions.create(
                 model=self.config.model,

@@ -10,13 +10,14 @@ from pathlib import Path
 
 from cv_ranker.config import load_db_settings, load_embedding_settings, load_llm_settings, load_qdrant_settings
 from cv_ranker.cv_structurer import extract_cv_structure
-from cv_ranker.db import FAILED, PENDING, CVStore, DBSettings
+from cv_ranker.db import CVStore, DBSettings
 from cv_ranker.embedding_client import EmbeddingClient, EmbeddingClientConfig, EmbeddingClientError
 from cv_ranker.llm_client import LLMClient, LLMClientConfig, LLMClientError
 from cv_ranker.logging_config import configure_logging
 from cv_ranker.parsing import iter_cv_files, parse_cv_bytes
 from cv_ranker.qdrant_store import CVVectorStore, CVVectorStoreError, QdrantSettings
 from cv_ranker.ranker import CandidateScore, CVRanker, RankConfig
+from cv_ranker.statuses import CVStatus
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +223,7 @@ def _run_process(store: CVStore, args: argparse.Namespace) -> int:
 
     ranker = CVRanker(llm_client=client)
     config = RankConfig(requirements=args.requirements, mode=args.mode)
-    statuses = (FAILED,) if args.only_failed else (PENDING, FAILED)
+    statuses = (CVStatus.FAILED,) if args.only_failed else (CVStatus.PENDING, CVStatus.FAILED)
 
     processed = 0
     succeeded = 0

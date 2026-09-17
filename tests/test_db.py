@@ -11,14 +11,12 @@ except ImportError:  # pragma: no cover - optional dev/test dependency
     PostgresContainer = None  # type: ignore[assignment,misc]
 
 from cv_ranker.db import (
-    FAILED,
     MIGRATIONS_DIR,
-    PENDING,
-    SUCCEEDED,
     CVStore,
     DBSettings,
     iter_migration_files,
 )
+from cv_ranker.statuses import CVStatus, MessageResponseStatus
 
 
 @unittest.skipUnless(
@@ -62,7 +60,7 @@ class CVStoreTests(unittest.TestCase):
         # Unique-ish filename per test to avoid content-hash collisions across runs.
         self._suffix = uuid.uuid4().hex[:8]
         with self.store._conn() as conn:  # noqa: SLF001 - test-only cleanup helper
-            conn.execute("TRUNCATE cvs, conversations, messages")
+            conn.execute("TRUNCATE cvs, conversations, messages, message_responses")
 
     def test_iter_migration_files_finds_initial_migration(self) -> None:
         files = iter_migration_files(MIGRATIONS_DIR)
@@ -77,7 +75,7 @@ class CVStoreTests(unittest.TestCase):
         self.assertTrue(first)
         self.assertFalse(second)
 
-        rows = self.store.fetch_by_status(PENDING)
+        rows = self.store.fetch_by_status(CVStatus.PENDING)
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["cv_file_name"], "alice.txt")
 
@@ -107,7 +105,7 @@ class CVStoreTests(unittest.TestCase):
 
         self.store.mark_failed(row["id"], "boom")
 
-        failed_rows = self.store.fetch_by_status(FAILED)
+        failed_rows = self.store.fetch_by_status(CVStatus.FAILED)
         self.assertEqual(len(failed_rows), 1)
         self.assertEqual(failed_rows[0]["error_message"], "boom")
 
@@ -117,7 +115,7 @@ class CVStoreTests(unittest.TestCase):
         self.assertEqual(retried["id"], row["id"])
 
         self.store.mark_succeeded(retried["id"], {"score": 10})
-        self.assertEqual(len(self.store.fetch_by_status(SUCCEEDED)), 1)
+        self.assertEqual(len(self.store.fetch_by_status(CVStatus.SUCCEEDED)), 1)
 
     def test_counts_by_status(self) -> None:
         self.store.ingest_file("elena.txt", f"cv-a-{self._suffix}".encode())
@@ -127,8 +125,8 @@ class CVStoreTests(unittest.TestCase):
         self.store.mark_succeeded(row["id"], {"score": 50})
 
         counts = self.store.counts_by_status()
-        self.assertEqual(counts.get(SUCCEEDED), 1)
-        self.assertEqual(counts.get(PENDING), 1)
+        self.assertEqual(counts.get(CVStatus.SUCCEEDED), 1)
+        self.assertEqual(counts.get(CVStatus.PENDING), 1)
 
     def test_create_conversation_persists_user_id_and_name(self) -> None:
         conversation_id = self.store.create_conversation("user-1", name="First chat")
@@ -234,6 +232,72 @@ class CVStoreTests(unittest.TestCase):
         updated = self.store.update_message_content(999999, "edited")
 
         self.assertFalse(updated)
+
+    def test_list_messages_before_returns_only_strictly_earlier_messages(self) -> None:
+        conversation_id = self.store.create_conversation("user-11")
+        other_conversation_id = self.store.create_conversation("user-11")
+        first_id = self.store.create_message(conversation_id, "user", "first")
+        second_id = self.store.create_message(conversation_id, "assistant", "second")
+        self.store.create_message(other_conversation_id, "user", "unrelated")
+        second = self.store.get_message(second_id)
+
+        history = self.store.list_messages_before(conversation_id, second.created_at)
+
+        self.assertEqual([m.id for m in history], [first_id])
+
+    def test_list_messages_before_returns_empty_for_earliest_message(self) -> None:
+        conversation_id = self.store.create_conversation("user-12")
+        first_id = self.store.create_message(conversation_id, "user", "only message")
+        first = self.store.get_message(first_id)
+
+        history = self.store.list_messages_before(conversation_id, first.created_at)
+
+        self.assertEqual(history, [])
+
+    def test_create_message_response_returns_id_then_none_on_retry(self) -> None:
+        conversation_id = self.store.create_conversation("user-13")
+        message_id = self.store.create_message(conversation_id, "user", "hello")
+
+        first = self.store.create_message_response(message_id)
+        second = self.store.create_message_response(message_id)
+
+        self.assertIsNotNone(first)
+        self.assertIsNone(second)
+
+    def test_create_message_response_starts_in_processing(self) -> None:
+        conversation_id = self.store.create_conversation("user-14")
+        message_id = self.store.create_message(conversation_id, "user", "hello")
+
+        self.store.create_message_response(message_id)
+
+        with self.store._conn() as conn:  # noqa: SLF001 - test-only assertion helper
+            row = conn.execute("SELECT status FROM message_responses WHERE message_id = %s", (message_id,)).fetchone()
+
+        self.assertEqual(row["status"], MessageResponseStatus.PROCESSING)
+
+    def test_mark_message_response_succeeded_updates_status(self) -> None:
+        conversation_id = self.store.create_conversation("user-15")
+        message_id = self.store.create_message(conversation_id, "user", "hello")
+        self.store.create_message_response(message_id)
+
+        self.store.mark_message_response_succeeded(message_id)
+
+        with self.store._conn() as conn:  # noqa: SLF001 - test-only assertion helper
+            row = conn.execute("SELECT status FROM message_responses WHERE message_id = %s", (message_id,)).fetchone()
+
+        self.assertEqual(row["status"], MessageResponseStatus.SUCCESS)
+
+    def test_mark_message_response_failed_updates_status(self) -> None:
+        conversation_id = self.store.create_conversation("user-16")
+        message_id = self.store.create_message(conversation_id, "user", "hello")
+        self.store.create_message_response(message_id)
+
+        self.store.mark_message_response_failed(message_id)
+
+        with self.store._conn() as conn:  # noqa: SLF001 - test-only assertion helper
+            row = conn.execute("SELECT status FROM message_responses WHERE message_id = %s", (message_id,)).fetchone()
+
+        self.assertEqual(row["status"], MessageResponseStatus.FAILED)
 
 
 if __name__ == "__main__":
