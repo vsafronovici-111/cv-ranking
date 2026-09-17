@@ -338,28 +338,45 @@ curl -X PATCH http://localhost:8000/messages/1 \
 
 Every `POST /conversations/{conversation_id}/messages` call also publishes
 the created message as a JSON event to the `chat-messages` Kafka topic, via
-`cv_ranker.kafka_producer.ChatMessageProducer` (created once at API startup,
-closed at shutdown — see `src/api/rest/app.py`'s `lifespan`). Requires the
-Kafka broker running (see [Kafka setup](#kafka-setup)).
+`kafka.producer.chat_message_producer.ChatMessageProducer` (an `aiokafka`
+producer, started once at API startup and stopped at shutdown — see
+`src/api/rest/app.py`'s `lifespan`). Requires the Kafka broker running (see
+[Kafka setup](#kafka-setup)).
 
-`src/consumer/chat_message_consumer.py` has a `ChatMessageConsumer` class
-that subscribes to `chat-messages` and logs each event; for now that's all
-it does. The API's `lifespan` also starts it automatically — as a background
-thread — alongside the producer, and stops it cleanly on shutdown, so it
-needs no separate process for local dev.
+`kafka.consumer.chat_message_consumer.ChatMessageConsumer` subscribes to `chat-messages`:
+
+- On a `role: "user"` event, it loads that conversation's earlier messages,
+  calls the LLM for a reply (idempotently, tracked via the `message_responses`
+  table keyed by `message.id`), and publishes the reply back to
+  `chat-messages` as a `role: "assistant"` event.
+- On a `role: "assistant"` event, it persists it as a new row in `messages`.
+
+Both of the above retry up to 3 total attempts (1-second backoff between
+each) before giving up. On the 3rd failure, the original event is published
+to `chat-messages-dlt` (wrapped with `error`/`attempts`/`failed_at` context)
+and the offset is committed as normal — a permanently-broken event no longer
+blocks the topic, it just stops being retried. There's no consumer reading
+`chat-messages-dlt` yet; inspect it via Kafka UI (see
+[Kafka setup](#kafka-setup)) for now.
+
+The API's `lifespan` starts it automatically — as an `asyncio` task sharing
+the API's event loop — alongside the producer, and stops it cleanly on
+shutdown, so it needs no separate process for local dev. Its DB/LLM calls
+are synchronous, so each is offloaded via `asyncio.to_thread` to avoid
+blocking that event loop while one message is being processed.
 
 It can still be run as its own standalone process (e.g. to scale consumption
 independently of the API in a real deployment):
 
 ```bash
-PYTHONPATH=src python3 -m consumer
+PYTHONPATH=src python3 -m kafka
 ```
 
 Don't run the standalone process *and* the API at the same time against the
-same Kafka broker unless you also give it a distinct `group_id`
-(`KafkaConsumerConfig.group_id`, default `"chat-message-consumer"`) — the
-`chat-messages` topic has a single partition, so two consumers sharing one
-group id will silently split it: only one of them will ever receive
+same Kafka broker unless you also give it a distinct `group_id` (hardcoded
+as `"chat-message-consumer"` in `kafka/consumer/chat_message_consumer.py`) —
+the `chat-messages` topic has a single partition, so two consumers sharing
+one group id will silently split it: only one of them will ever receive
 messages, and the other will sit idle.
 
 ## Test

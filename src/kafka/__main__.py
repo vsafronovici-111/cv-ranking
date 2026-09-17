@@ -1,12 +1,14 @@
-from consumer.chat_message_consumer import ChatMessageConsumer, KafkaConsumerConfig
+import asyncio
+
 from cv_ranker.config import load_db_settings, load_kafka_settings, load_llm_settings
 from cv_ranker.db import CVStore, DBSettings
-from cv_ranker.kafka_producer import ChatMessageProducer, KafkaProducerConfig
 from cv_ranker.llm_client import LLMClient, LLMClientConfig
 from cv_ranker.logging_config import configure_logging
+from kafka.consumer.chat_message_consumer import ChatMessageConsumer
+from kafka.producer.chat_message_producer import ChatMessageProducer
 
 
-def main() -> None:
+async def main() -> None:
     configure_logging()
     kafka_settings = load_kafka_settings()
     store = CVStore(DBSettings(dsn=load_db_settings().dsn))
@@ -19,17 +21,23 @@ def main() -> None:
             timeout_seconds=llm_settings.timeout_seconds,
         )
     )
-    producer = ChatMessageProducer(KafkaProducerConfig(bootstrap_servers=kafka_settings.bootstrap_servers))
+
+    producer = ChatMessageProducer(bootstrap_servers=kafka_settings.bootstrap_servers)
+    await producer.start()
+
     consumer = ChatMessageConsumer(
-        KafkaConsumerConfig(bootstrap_servers=kafka_settings.bootstrap_servers), store, llm_client, producer
+        bootstrap_servers=kafka_settings.bootstrap_servers,
+        producer=producer,
+        store=store,
+        llm_client=llm_client,
     )
     try:
-        consumer.run()
+        await consumer.start()
     except KeyboardInterrupt:
-        consumer.stop()
+        await consumer.stop()
     finally:
-        producer.close()
+        await producer.stop()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

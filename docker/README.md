@@ -83,8 +83,9 @@ Kafka UI: http://localhost:8081
 
 Matches the default `CV_RANKER_KAFKA_BOOTSTRAP_SERVERS` in
 `config/local.env.example`. The REST API publishes to (and
-`src/consumer/chat_message_consumer.py` consumes from) the `chat-messages`
-topic; topics are auto-created on first publish, no manual setup needed.
+`src/kafka/consumer/chat_message_consumer.py` consumes from) the `chat-messages`
+topic; topics
+are auto-created on first publish, no manual setup needed.
 
 To fully reset Kafka, stop the container and delete the contents of
 `docker/volume/kafka/` (everything except `.gitkeep`).

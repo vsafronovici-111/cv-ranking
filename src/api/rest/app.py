@@ -1,5 +1,5 @@
+import asyncio
 import logging
-import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -8,12 +8,12 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from consumer.chat_message_consumer import ChatMessageConsumer, KafkaConsumerConfig
 from cv_ranker.config import load_db_settings, load_kafka_settings, load_llm_settings
 from cv_ranker.db import Conversation, CVStore, DBSettings, Message
-from cv_ranker.kafka_producer import ChatMessageProducer, KafkaProducerConfig
 from cv_ranker.llm_client import LLMClient, LLMClientConfig
 from cv_ranker.logging_config import configure_logging
+from kafka.consumer.chat_message_consumer import ChatMessageConsumer
+from kafka.producer.chat_message_producer import ChatMessageProducer
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +27,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     store.init_schema()
 
     kafka_bootstrap_servers = load_kafka_settings().bootstrap_servers
-    app.state.chat_message_producer = ChatMessageProducer(
-        KafkaProducerConfig(bootstrap_servers=kafka_bootstrap_servers)
-    )
+    producer = ChatMessageProducer(bootstrap_servers=kafka_bootstrap_servers)
+    await producer.start()
 
     llm_settings = load_llm_settings()
     llm_client = LLMClient(
@@ -40,21 +39,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             timeout_seconds=llm_settings.timeout_seconds,
         )
     )
-    chat_message_consumer = ChatMessageConsumer(
-        KafkaConsumerConfig(bootstrap_servers=kafka_bootstrap_servers),
-        store,
-        llm_client,
-        app.state.chat_message_producer,
+
+    consumer = ChatMessageConsumer(
+        bootstrap_servers=kafka_bootstrap_servers,
+        producer=producer,
+        store=store,
+        llm_client=llm_client,
     )
-    consumer_thread = threading.Thread(target=chat_message_consumer.run, name="chat-message-consumer", daemon=True)
-    consumer_thread.start()
+    consumer_task = asyncio.create_task(consumer.start())
+
+    app.state.chat_message_producer = producer
 
     logger.info("Startup complete")
-    yield
-
-    app.state.chat_message_producer.close()
-    chat_message_consumer.stop()
-    consumer_thread.join(timeout=5)
+    try:
+        yield
+    finally:
+        await consumer.stop()
+        await consumer_task
+        await producer.stop()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -128,18 +130,18 @@ def update_conversation(
 
 
 @app.post("/conversations/{conversation_id}/messages", status_code=201)
-def create_message(
+async def create_message(
     conversation_id: int,
     body: MessageCreate,
     store: CVStore = Depends(get_store),
     producer: ChatMessageProducer = Depends(get_producer),
 ) -> Message:
     try:
-        message_id = store.create_message(conversation_id, body.role, body.content)
+        message_id = await asyncio.to_thread(store.create_message, conversation_id, body.role, body.content)
     except psycopg.errors.ForeignKeyViolation as exc:
         raise HTTPException(status_code=404, detail="Conversation not found") from exc
-    message = store.get_message(message_id)
-    producer.publish_message(message)
+    message = await asyncio.to_thread(store.get_message, message_id)
+    await producer.publish_message(message)
     return message
 
 
