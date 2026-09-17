@@ -5,14 +5,14 @@ React + Vite frontend for the `cv-ranker` REST/WebSocket API
 
 ## Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 18+ and [Yarn](https://yarnpkg.com/)
 - The backend API running on `http://localhost:8000` (see below)
 
 ## Install
 
 ```bash
 cd web
-npm install
+yarn install
 ```
 
 ## Run
@@ -27,7 +27,7 @@ Then start the frontend dev server:
 
 ```bash
 cd web
-npm run dev
+yarn dev
 ```
 
 The app runs at [http://localhost:3000](http://localhost:3000). The backend
@@ -48,13 +48,19 @@ VITE_WS_URL=ws://localhost:8000/ws
 ## Build
 
 ```bash
-npm run build    # outputs to web/dist
-npm run preview  # serves the production build on port 3000
+yarn build    # outputs to web/dist
+yarn preview  # serves the production build on port 3000
 ```
 
 ## Structure
 
-- `src/pages/ChatPage.jsx` — fetches `GET /` and shows the response as the
-  page header, then renders `Chat`.
-- `src/components/Chat.jsx` — owns the `/ws` WebSocket connection; wires
+Routing is client-side via `react-router-dom` (see `src/App.jsx`).
+
+- `/` — `src/pages/ChatPage.jsx` fetches `GET /` and shows the response as
+  the page header, then renders `Chat`.
+  `src/components/Chat.jsx` owns the `/ws` WebSocket connection; wires
   `ChatHistory` (incoming messages) and `ChatBox` (outgoing messages).
+- `/:userId/chats` — `src/pages/ConversationsPage.jsx` fetches
+  `GET /conversations?user_id=:userId` and renders the list via
+  `src/components/ConversationList.jsx` (each item's `id`, `name`, and
+  `created_at`).

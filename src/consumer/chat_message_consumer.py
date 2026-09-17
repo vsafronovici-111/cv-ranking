@@ -58,7 +58,10 @@ class ChatMessageConsumer:
                 for records in records_by_partition.values():
                     for record in records:
                         logger.info("Received chat message: %s", record.value)
-                        self._handle_message(record.value)
+                        try:
+                            self._handle_message(record.value)
+                        except Exception:
+                            logger.exception("Failed to handle message: %s", record.value)
         finally:
             self._consumer.close()
             logger.info("Stopped listening for messages on topic '%s'", CHAT_MESSAGES_TOPIC)
