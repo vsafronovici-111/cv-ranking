@@ -1,11 +1,46 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL, WS_URL } from "../config.js";
 import ChatBox from "./ChatBox.jsx";
 import ChatHistory from "./ChatHistory.jsx";
 
+function toChatMessage(message) {
+  return {
+    id: message.id,
+    sender: message.role === "user" ? "user" : "server",
+    text: message.content,
+    created_at: message.created_at,
+  };
+}
+
+function insertSorted(messages, message) {
+  return [...messages, message].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+}
+
+function upsertMessage(messages, message) {
+  return insertSorted(messages.filter((existing) => existing.id !== message.id), message);
+}
+
+function pendingReplyFor(lastMessage) {
+  return {
+    id: `pending-${lastMessage.id}`,
+    sender: "server",
+    text: "Thinking ...",
+    created_at: new Date().toISOString(),
+    pending: true,
+  };
+}
+
+// Invariant enforced after every change: the list ends with a "Thinking
+// ..." placeholder whenever the last real message is from the user, and
+// never otherwise (e.g. once the assistant's real reply arrives).
+function reconcilePending(messages) {
+  const withoutPending = messages.filter((message) => !message.pending);
+  const last = withoutPending[withoutPending.length - 1];
+  return last && last.sender === "user" ? insertSorted(withoutPending, pendingReplyFor(last)) : withoutPending;
+}
+
 function Chat({ conversationId }) {
   const [messages, setMessages] = useState([]);
-  const nextIdRef = useRef(0);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -16,26 +51,24 @@ function Chat({ conversationId }) {
         return res.json();
       })
       .then((fetched) => {
-        setMessages(
-          fetched.map((message) => ({
-            id: message.id,
-            sender: message.role === "user" ? "user" : "server",
-            text: message.content,
-          })),
-        );
-        nextIdRef.current = fetched.reduce((max, message) => Math.max(max, message.id), 0) + 1;
+        const sorted = fetched.map(toChatMessage).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        setMessages(reconcilePending(sorted));
       })
       .catch(() => {});
   }, [conversationId]);
 
   useEffect(() => {
-    const socket = new WebSocket(WS_URL);
+    if (!conversationId) return;
+
+    const socket = new WebSocket(`${WS_URL}/conversations/${conversationId}`);
     socket.onmessage = (event) => {
-      setMessages((prev) => [...prev, { id: nextIdRef.current++, sender: "server", text: event.data }]);
+      const payload = JSON.parse(event.data);
+      const incoming = toChatMessage(payload);
+      setMessages((prev) => reconcilePending(upsertMessage(prev, incoming)));
     };
 
     return () => socket.close();
-  }, []);
+  }, [conversationId]);
 
   const sendMessage = useCallback(
     (text) => {
@@ -51,7 +84,8 @@ function Chat({ conversationId }) {
           return res.json();
         })
         .then((message) => {
-          setMessages((prev) => [...prev, { id: message.id, sender: "user", text: message.content }]);
+          const userMessage = toChatMessage(message);
+          setMessages((prev) => reconcilePending(upsertMessage(prev, userMessage)));
         })
         .catch((err) => console.error(err));
     },
@@ -59,7 +93,7 @@ function Chat({ conversationId }) {
   );
 
   return (
-    <div>
+    <div className="chat-layout">
       <ChatHistory messages={messages} />
       <ChatBox onSend={sendMessage} />
     </div>

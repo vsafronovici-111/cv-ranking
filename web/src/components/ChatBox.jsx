@@ -25,7 +25,7 @@ function ChatBox({ onSend }) {
         value={text}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={handleKeyDown}
-        rows={2}
+        rows={8}
       />
       <button className="chat-box__send" type="submit">
         Send

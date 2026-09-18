@@ -283,6 +283,42 @@ _KAFKA_SETTINGS_CLASS_BY_ENV: dict[str, type[KafkaSettingsBase]] = {
 }
 
 
+class RedisSettingsBase(BaseSettings):
+    """Resolved Redis connection settings for a given environment."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_REDIS_",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    url: str = "redis://localhost:6379"
+
+
+class LocalRedisSettings(RedisSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_REDIS_",
+        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class ProdRedisSettings(RedisSettingsBase):
+    model_config = SettingsConfigDict(
+        env_prefix="CV_RANKER_REDIS_",
+        env_file=str(_CONFIG_DIR / "prod.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+_REDIS_SETTINGS_CLASS_BY_ENV: dict[str, type[RedisSettingsBase]] = {
+    "local": LocalRedisSettings,
+    "prod": ProdRedisSettings,
+}
+
+
 _SETTINGS_CLASS_BY_ENV: dict[str, type[LLMSettings]] = {
     "local": LocalLLMSettings,
     "prod": ProdLLMSettings,
@@ -403,6 +439,23 @@ def load_kafka_settings(env_name: str | None = None) -> KafkaSettingsBase:
     settings_cls = _KAFKA_SETTINGS_CLASS_BY_ENV.get(resolved_env)
     if settings_cls is None:
         valid = ", ".join(sorted(_KAFKA_SETTINGS_CLASS_BY_ENV))
+        raise ValueError(f"Unknown environment '{resolved_env}'. Expected one of: {valid}.")
+
+    return settings_cls()
+
+
+def load_redis_settings(env_name: str | None = None) -> RedisSettingsBase:
+    """Resolve Redis connection settings for the requested environment.
+
+    Same resolution order as `load_db_settings`: explicit arg ->
+    `CV_RANKER_ENV` -> "local". `url` can be overridden via
+    `CV_RANKER_REDIS_URL` or `config/<env>.env`.
+    """
+    resolved_env = (env_name or os.environ.get("CV_RANKER_ENV") or "local").strip().lower()
+
+    settings_cls = _REDIS_SETTINGS_CLASS_BY_ENV.get(resolved_env)
+    if settings_cls is None:
+        valid = ", ".join(sorted(_REDIS_SETTINGS_CLASS_BY_ENV))
         raise ValueError(f"Unknown environment '{resolved_env}'. Expected one of: {valid}.")
 
     return settings_cls()

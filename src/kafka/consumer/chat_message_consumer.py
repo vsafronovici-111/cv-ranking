@@ -12,6 +12,7 @@ from aiokafka import AIOKafkaConsumer
 from cv_ranker.db import CVStore
 from cv_ranker.llm_client import LLMClient
 from kafka.producer.chat_message_producer import CHAT_MESSAGES_TOPIC, ChatMessageProducer
+from redis_pubsub.producer.redis_pubsub_producer import RedisPubSubProducer
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class ChatMessageConsumer:
         producer: ChatMessageProducer,
         store: CVStore,
         llm_client: LLMClient,
+        redis_producer: RedisPubSubProducer,
     ):
         self.consumer = AIOKafkaConsumer(
             CHAT_MESSAGES_TOPIC,
@@ -52,6 +54,7 @@ class ChatMessageConsumer:
         self.producer = producer
         self._store = store
         self._llm_client = llm_client
+        self._redis_producer = redis_producer
         self.running = True
 
     async def start(self) -> None:
@@ -114,8 +117,8 @@ class ChatMessageConsumer:
             await self._on_ai_model_request(payload)
 
     async def _on_ai_model_response(self, payload: dict[str, Any]) -> None:
-        async def _persist() -> None:
-            await asyncio.to_thread(
+        async def _persist() -> int:
+            return await asyncio.to_thread(
                 self._store.create_message, payload["conversation_id"], payload["role"], payload["content"]
             )
 
@@ -126,7 +129,20 @@ class ChatMessageConsumer:
                 _MAX_ATTEMPTS,
             )
 
-        await self._call_with_retries(_persist, _on_give_up, payload)
+        succeeded, message_id = await self._call_with_retries(_persist, _on_give_up, payload)
+        if not succeeded:
+            return
+
+        message = await asyncio.to_thread(self._store.get_message, message_id)
+        await self._redis_producer.publish_ai_model_response(
+            {
+                "id": message.id,
+                "conversation_id": message.conversation_id,
+                "role": message.role,
+                "content": message.content,
+                "created_at": message.created_at.isoformat(),
+            }
+        )
 
     async def _on_ai_model_request(self, payload: dict[str, Any]) -> None:
         message_id = payload["id"]

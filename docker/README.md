@@ -90,3 +90,27 @@ are auto-created on first publish, no manual setup needed.
 To fully reset Kafka, stop the container and delete the contents of
 `docker/volume/kafka/` (everything except `.gitkeep`).
 
+## Redis (pub/sub)
+
+Starts a [Redis](https://redis.io) 7 instance, persisting data to
+`docker/volume/redis` (gitignored), plus
+[Redis Commander](https://github.com/joeferner/redis-commander) for browsing
+keys and pub/sub channels. Started together with the rest of the stack via
+the same `docker compose up -d` command above.
+
+Default endpoints:
+
+```
+Redis:           localhost:6379
+Redis Commander: http://localhost:8082
+```
+
+Matches the default `CV_RANKER_REDIS_URL` in `config/local.env.example`. The
+consumer publishes to (and `src/redis_pubsub/consumer/redis_pubsub_consumer.py`
+subscribes to) the `ai-model-response` channel after an assistant reply is
+persisted in `_on_ai_model_response` (`src/kafka/consumer/chat_message_consumer.py`);
+no manual channel setup is needed — Redis Commander auto-connects via the
+`REDIS_HOSTS` env var, same pattern as `kafka-ui`.
+
+To fully reset Redis, stop the container and delete the contents of
+`docker/volume/redis/` (everything except `.gitkeep`).

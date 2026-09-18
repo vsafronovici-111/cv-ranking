@@ -73,6 +73,17 @@ single-node Kafka broker (KRaft mode, no ZooKeeper) on `localhost:9092`, plus
 It matches the default `CV_RANKER_KAFKA_BOOTSTRAP_SERVERS` in
 `config/local.env.example`.
 
+### Redis setup
+
+The consumer publishes an `ai-model-response` pub/sub event every time an
+assistant reply is persisted (see
+[Chat message events (Kafka)](#chat-message-events-kafka)). `docker compose
+up -d` (same compose file as Postgres/Qdrant/Kafka) also starts Redis on
+`localhost:6379`, plus
+[Redis Commander](https://github.com/joeferner/redis-commander) on
+[http://localhost:8082](http://localhost:8082) for browsing keys/channels.
+It matches the default `CV_RANKER_REDIS_URL` in `config/local.env.example`.
+
 ## Configuration (local vs prod)
 
 Settings are resolved by `cv_ranker.config.load_llm_settings()`, backed by
@@ -378,6 +389,23 @@ as `"chat-message-consumer"` in `kafka/consumer/chat_message_consumer.py`) —
 the `chat-messages` topic has a single partition, so two consumers sharing
 one group id will silently split it: only one of them will ever receive
 messages, and the other will sit idle.
+
+### AI model response notifications (Redis pub/sub)
+
+After `ChatMessageConsumer._on_ai_model_response` successfully persists an
+assistant reply, it publishes that same payload to the `ai-model-response`
+Redis channel via
+`redis_pubsub.producer.redis_pubsub_producer.RedisPubSubProducer`. This is a
+plain fire-and-forget pub/sub notification (no retry/DLT, no idempotency
+tracking, no durability once published) — it's a lightweight hook for
+anything that wants to react to a finished assistant reply in real time,
+separate from the durable `messages` row Postgres already holds.
+
+`redis_pubsub.consumer.redis_pubsub_consumer.RedisPubSubConsumer` subscribes
+to that channel and logs each message it receives. Like the Kafka consumer,
+the API's `lifespan` starts and stops it automatically as an `asyncio` task
+sharing the API's event loop, so it needs no separate process for local dev.
+Requires Redis running (see [Redis setup](#redis-setup)).
 
 ## Test
 

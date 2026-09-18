@@ -92,3 +92,31 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
+  redis:
+    image: redis:7-alpine
+    container_name: cvranker-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./volume/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis-ui:
+    image: rediscommander/redis-commander:latest
+    container_name: cvranker-redis-ui
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8082:8081"
+    environment:
+      # Uses the internal Docker network hostname — redis-commander runs
+      # inside the same network as the `redis` service.
+      REDIS_HOSTS: local:redis:6379
+

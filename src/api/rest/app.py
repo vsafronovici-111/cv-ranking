@@ -4,16 +4,19 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import psycopg
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from cv_ranker.config import load_db_settings, load_kafka_settings, load_llm_settings
+from cv_ranker.config import load_db_settings, load_kafka_settings, load_llm_settings, load_redis_settings
 from cv_ranker.db import Conversation, CVStore, DBSettings, Message
 from cv_ranker.llm_client import LLMClient, LLMClientConfig
 from cv_ranker.logging_config import configure_logging
+from cv_ranker.websocket_manager import WSConnectionManager
 from kafka.consumer.chat_message_consumer import ChatMessageConsumer
 from kafka.producer.chat_message_producer import ChatMessageProducer
+from redis_pubsub.consumer.redis_pubsub_consumer import RedisPubSubConsumer
+from redis_pubsub.producer.redis_pubsub_producer import RedisPubSubProducer
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +33,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     producer = ChatMessageProducer(bootstrap_servers=kafka_bootstrap_servers)
     await producer.start()
 
+    ws_connection_manager = WSConnectionManager()
+    app.state.ws_connection_manager = ws_connection_manager
+
+    redis_url = load_redis_settings().url
+    redis_producer = RedisPubSubProducer(url=redis_url)
+    await redis_producer.start()
+
+    redis_consumer = RedisPubSubConsumer(url=redis_url, ws_connection_manager=ws_connection_manager)
+    redis_consumer_task = asyncio.create_task(redis_consumer.start())
+
     llm_settings = load_llm_settings()
     llm_client = LLMClient(
         LLMClientConfig(
@@ -45,6 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         producer=producer,
         store=store,
         llm_client=llm_client,
+        redis_producer=redis_producer,
     )
     consumer_task = asyncio.create_task(consumer.start())
 
@@ -57,6 +71,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await consumer.stop()
         await consumer_task
         await producer.stop()
+        await redis_consumer.stop()
+        await redis_consumer_task
+        await redis_producer.stop()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -75,6 +92,10 @@ def get_store() -> CVStore:
 
 def get_producer(request: Request) -> ChatMessageProducer:
     return request.app.state.chat_message_producer
+
+
+def get_ws_connection_manager(request: Request) -> WSConnectionManager:
+    return request.app.state.ws_connection_manager
 
 
 @app.get("/")
@@ -135,12 +156,21 @@ async def create_message(
     body: MessageCreate,
     store: CVStore = Depends(get_store),
     producer: ChatMessageProducer = Depends(get_producer),
+    ws_connection_manager: WSConnectionManager = Depends(get_ws_connection_manager),
 ) -> Message:
     try:
         message_id = await asyncio.to_thread(store.create_message, conversation_id, body.role, body.content)
     except psycopg.errors.ForeignKeyViolation as exc:
         raise HTTPException(status_code=404, detail="Conversation not found") from exc
     message = await asyncio.to_thread(store.get_message, message_id)
+    payload = {
+        "id": message.id,
+        "conversation_id": message.conversation_id,
+        "role": message.role,
+        "content": message.content,
+        "created_at": message.created_at.isoformat(),
+    }
+    await ws_connection_manager.broadcast(payload["conversation_id"], payload)
     await producer.publish_message(message)
     return message
 
@@ -164,6 +194,17 @@ def update_message(message_id: int, body: MessageUpdate, store: CVStore = Depend
     if not updated:
         raise HTTPException(status_code=404, detail="Message not found")
     return store.get_message(message_id)
+
+
+@app.websocket("/ws/conversations/{conversation_id}")
+async def conversation_messages_ws(websocket: WebSocket, conversation_id: int) -> None:
+    manager: WSConnectionManager = websocket.app.state.ws_connection_manager
+    await manager.connect(conversation_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(conversation_id, websocket)
 
 
 # @app.websocket("/ws")
