@@ -9,7 +9,7 @@ description = "Rank CVs against job requirements using an OpenAI-compatible LLM 
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Local User" }]
-dependencies = ["openai>=1.30.0", "pydantic-settings>=2.0.0", "psycopg[binary]>=3.1.0", "qdrant-client>=1.10.0", "httpx>=0.27.0", "fastapi>=0.115.0", "uvicorn>=0.30.0", "websockets>=13.0", "aiokafka>=0.11.0", "redis>=5.0.0"]
+dependencies = ["openai>=1.30.0", "pydantic-settings>=2.0.0", "psycopg[binary]>=3.1.0", "qdrant-client>=1.10.0", "httpx>=0.27.0", "fastapi>=0.115.0", "uvicorn>=0.30.0", "websockets>=13.0", "aiokafka>=0.11.0", "redis>=5.0.0", "langchain>=1.0.0", "langchain-openai>=0.2.0"]
 
 [project.optional-dependencies]
 pdf = ["pypdf>=4.0.0"]

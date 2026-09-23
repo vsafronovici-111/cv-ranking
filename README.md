@@ -423,6 +423,64 @@ the API's `lifespan` starts and stops it automatically as an `asyncio` task
 sharing the API's event loop, so it needs no separate process for local dev.
 Requires Redis running (see [Redis setup](#redis-setup)).
 
+## Chat v2 (Redis Streams + LangChain)
+
+A second, parallel chat pipeline lives alongside the one described above,
+without changing any of its endpoints or behavior:
+
+| | v1 | v2 |
+|---|---|---|
+| Message endpoint | `POST /conversations/{conversation_id}/messages` | `POST /v2/conversations/{conversation_id}/messages` |
+| Event transport | Kafka topic `chat-messages` | Redis Stream `chat-messages-v2` (consumer group `chat-message-consumer-v2`) |
+| AI orchestration | `kafka.consumer.recruiter_assistant.RecruiterAssistant` (hand-rolled tool-calling loop) | `redis_streams.consumer.recruiter_agent.RecruiterAgent` ([LangChain](https://python.langchain.com) `create_agent`) |
+| Reply notification | Redis pub/sub channel `ai-model-response` | Redis pub/sub channel `ai-model-response-v2` |
+| Browser socket | `ws://.../ws/conversations/{conversation_id}` | `ws://.../ws/v2/conversations/{conversation_id}` |
+| React route | `/chat/:conversationId` (`web/src/components/Chat.jsx`) | `/chat/v2/:conversationId` (`web/src/v2/components/Chat.jsx`) |
+
+Everything else — conversation CRUD, message history, the Postgres schema,
+message idempotency via `message_responses` — is shared as-is between both
+versions; only sending a message and receiving the AI reply differ.
+
+The v2 endpoint (`api.rest.appV2`, mounted onto the same `FastAPI` app in
+`api.rest.app`) persists the message and publishes it to
+`redis_streams.producer.chat_message_producer.ChatMessageStreamProducer`
+(Redis `XADD`) instead of Kafka:
+
+```bash
+curl -X POST http://localhost:8000/v2/conversations/1/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"role": "user", "content": "Hello!"}'
+```
+
+`redis_streams.consumer.chat_message_consumer.ChatMessageStreamConsumer`
+reads `chat-messages-v2` via a Redis Streams consumer group (`XREADGROUP` /
+`XACK`), with the same retry/dead-letter semantics as the Kafka consumer (3
+total attempts, 1-second backoff, failures land on `chat-messages-v2-dlt`).
+On a `role: "user"` event it calls `RecruiterAgent.generate_reply`, which
+wraps the same `search_candidates` capability as `RecruiterAssistant` (embed
+the criteria, search Qdrant) but as a LangChain tool, letting
+`langchain.agents.create_agent`'s prebuilt tool-calling loop drive the
+model instead of the hand-written one in `RecruiterAssistant`.
+
+Like the Kafka consumer, it's started/stopped automatically by the API's
+`lifespan`, or can run standalone:
+
+```bash
+PYTHONPATH=src python3 -m redis_streams
+```
+
+The `WSConnectionManager` instance backing `/ws/v2/conversations/{conversation_id}`
+is a separate instance from the v1 one, and `RedisPubSubConsumer` (the same
+class the v1 flow uses) is given `channel=AI_MODEL_RESPONSE_CHANNEL_V2` to
+relay replies to it — no separate consumer implementation was needed for
+that hop.
+
+The v2 React route `/chat/v2/{conversationId}` renders `web/src/v2/components/Chat.jsx`,
+which still reads message history from the shared (unversioned)
+`GET /conversations/{conversation_id}/messages` endpoint, but sends new
+messages to `/v2/conversations/{conversation_id}/messages` and listens on
+the `/ws/v2/...` socket for the reply.
+
 ## Test
 
 ```bash

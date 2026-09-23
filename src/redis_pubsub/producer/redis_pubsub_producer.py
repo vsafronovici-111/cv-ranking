@@ -6,6 +6,7 @@ from typing import Any
 import redis.asyncio as redis
 
 AI_MODEL_RESPONSE_CHANNEL = "ai-model-response"
+AI_MODEL_RESPONSE_CHANNEL_V2 = "ai-model-response-v2"
 
 
 class RedisPubSubProducer:
@@ -23,3 +24,6 @@ class RedisPubSubProducer:
 
     async def publish_ai_model_response(self, payload: dict[str, Any]) -> None:
         await self.publish(AI_MODEL_RESPONSE_CHANNEL, payload)
+
+    async def publish_ai_model_response_v2(self, payload: dict[str, Any]) -> None:
+        await self.publish(AI_MODEL_RESPONSE_CHANNEL_V2, payload)

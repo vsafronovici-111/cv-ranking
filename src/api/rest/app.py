@@ -8,6 +8,8 @@ from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSock
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from api.rest import appV2
+from api.rest.dependencies import get_store
 from cv_ranker.config import (
     load_db_settings,
     load_embedding_settings,
@@ -26,7 +28,10 @@ from kafka.consumer.chat_message_consumer import ChatMessageConsumer
 from kafka.consumer.recruiter_assistant import RecruiterAssistant
 from kafka.producer.chat_message_producer import ChatMessageProducer
 from redis_pubsub.consumer.redis_pubsub_consumer import RedisPubSubConsumer
-from redis_pubsub.producer.redis_pubsub_producer import RedisPubSubProducer
+from redis_pubsub.producer.redis_pubsub_producer import AI_MODEL_RESPONSE_CHANNEL_V2, RedisPubSubProducer
+from redis_streams.consumer.chat_message_consumer import ChatMessageStreamConsumer
+from redis_streams.consumer.recruiter_agent import RecruiterAgent
+from redis_streams.producer.chat_message_producer import ChatMessageStreamProducer
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +51,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     ws_connection_manager = WSConnectionManager()
     app.state.ws_connection_manager = ws_connection_manager
 
+    ws_connection_manager_v2 = WSConnectionManager()
+    app.state.ws_connection_manager_v2 = ws_connection_manager_v2
+
     redis_url = load_redis_settings().url
     redis_producer = RedisPubSubProducer(url=redis_url)
     await redis_producer.start()
 
     redis_consumer = RedisPubSubConsumer(url=redis_url, ws_connection_manager=ws_connection_manager)
     redis_consumer_task = asyncio.create_task(redis_consumer.start())
+
+    redis_consumer_v2 = RedisPubSubConsumer(
+        url=redis_url, ws_connection_manager=ws_connection_manager_v2, channel=AI_MODEL_RESPONSE_CHANNEL_V2
+    )
+    redis_consumer_v2_task = asyncio.create_task(redis_consumer_v2.start())
 
     llm_settings = load_llm_settings()
     llm_client = LLMClient(
@@ -89,6 +102,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.chat_message_producer = producer
 
+    redis_stream_producer = ChatMessageStreamProducer(url=redis_url)
+    await redis_stream_producer.start()
+
+    recruiter_agent = RecruiterAgent(
+        llm_config=LLMClientConfig(
+            base_url=llm_settings.base_url,
+            api_key=llm_settings.api_key,
+            model=llm_settings.model,
+            timeout_seconds=llm_settings.timeout_seconds,
+        ),
+        embedding_client=embedding_client,
+        vector_store=vector_store,
+    )
+
+    stream_consumer = ChatMessageStreamConsumer(
+        url=redis_url,
+        producer=redis_stream_producer,
+        store=store,
+        recruiter_agent=recruiter_agent,
+        redis_pubsub_producer=redis_producer,
+    )
+    stream_consumer_task = asyncio.create_task(stream_consumer.start())
+
+    app.state.chat_message_stream_producer = redis_stream_producer
+
     logger.info("Startup complete")
     try:
         yield
@@ -96,8 +134,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await consumer.stop()
         await consumer_task
         await producer.stop()
+        await stream_consumer.stop()
+        await stream_consumer_task
+        await redis_stream_producer.stop()
         await redis_consumer.stop()
         await redis_consumer_task
+        await redis_consumer_v2.stop()
+        await redis_consumer_v2_task
         await redis_producer.stop()
 
 
@@ -110,9 +153,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-def get_store() -> CVStore:
-    return CVStore(DBSettings(dsn=load_db_settings().dsn))
+app.include_router(appV2.router)
 
 
 def get_producer(request: Request) -> ChatMessageProducer:

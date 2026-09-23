@@ -8,6 +8,8 @@ uvicorn>=0.30.0
 websockets>=13.0
 aiokafka>=0.11.0
 redis>=5.0.0
+langchain>=0.3.0
+langchain-openai>=0.2.0
 
 [dev]
 ruff>=0.16.0

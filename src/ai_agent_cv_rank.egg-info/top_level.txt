@@ -1,3 +1,5 @@
 api
 cv_ranker
 kafka
+redis_pubsub
+redis_streams

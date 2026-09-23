@@ -14,18 +14,25 @@ _POLL_TIMEOUT_SECONDS = 1.0
 
 
 class RedisPubSubConsumer:
-    """Subscribes to `AI_MODEL_RESPONSE_CHANNEL`, logs each message received,
-    and relays it to the `conversations/{conversation_id}` WebSocket topic."""
+    """Subscribes to `channel` (`AI_MODEL_RESPONSE_CHANNEL` by default), logs
+    each message received, and relays it to the `conversations/{conversation_id}`
+    WebSocket topic.
 
-    def __init__(self, url: str, ws_connection_manager: WSConnectionManager):
+    `channel` is overridable so the same class also backs the v2 flow,
+    subscribed to `AI_MODEL_RESPONSE_CHANNEL_V2` and relaying to a separate
+    `WSConnectionManager` instance instead.
+    """
+
+    def __init__(self, url: str, ws_connection_manager: WSConnectionManager, channel: str = AI_MODEL_RESPONSE_CHANNEL):
         self.client = redis.from_url(url, decode_responses=True)
         self.pubsub = self.client.pubsub()
         self._ws_connection_manager = ws_connection_manager
+        self._channel = channel
         self.running = True
 
     async def start(self) -> None:
-        await self.pubsub.subscribe(AI_MODEL_RESPONSE_CHANNEL)
-        logger.info("Listening for messages on channel '%s'", AI_MODEL_RESPONSE_CHANNEL)
+        await self.pubsub.subscribe(self._channel)
+        logger.info("Listening for messages on channel '%s'", self._channel)
         try:
             # A timed `get_message` (rather than the blocking `listen()`
             # iterator) wakes up every `_POLL_TIMEOUT_SECONDS` even with no
@@ -40,10 +47,10 @@ class RedisPubSubConsumer:
                 except Exception:
                     logger.exception("Failed to handle message: %s", message)
         finally:
-            await self.pubsub.unsubscribe(AI_MODEL_RESPONSE_CHANNEL)
+            await self.pubsub.unsubscribe(self._channel)
             await self.pubsub.aclose()
             await self.client.aclose()
-            logger.info("Stopped listening for messages on channel '%s'", AI_MODEL_RESPONSE_CHANNEL)
+            logger.info("Stopped listening for messages on channel '%s'", self._channel)
 
     async def stop(self) -> None:
         self.running = False
