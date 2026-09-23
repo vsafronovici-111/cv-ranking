@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
+from openai.types.chat import ChatCompletionMessage
 
 
 class LLMClientError(RuntimeError):
@@ -65,6 +66,35 @@ class LLMClient:
             raise LLMClientError("LLM response content is not text")
 
         return content.strip()
+
+    def generate_chat_with_tools(
+        self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
+    ) -> ChatCompletionMessage:
+        """Like `generate_chat`, but lets the model optionally call one of `tools`.
+
+        Unlike `generate_tool_call`, the model isn't forced to call anything
+        (`tool_choice="auto"`), so the returned message may carry `content`,
+        `tool_calls`, or both — the caller decides what to do with each.
+        """
+        try:
+            response = self._client.chat.completions.create(
+                model=self.config.model,
+                messages=messages,  # type: ignore[arg-type]
+                tools=tools,  # type: ignore[arg-type]
+                tool_choice="auto",
+                temperature=0,
+            )
+        except APITimeoutError as exc:
+            raise LLMClientError("LLM request timed out") from exc
+        except APIConnectionError as exc:
+            raise LLMClientError(f"Cannot reach LLM server at {self.config.base_url}: {exc}") from exc
+        except APIStatusError as exc:
+            raise LLMClientError(f"LLM server returned an error: {exc}") from exc
+
+        if not response.choices:
+            raise LLMClientError("LLM response contained no choices")
+
+        return response.choices[0].message
 
     def generate_tool_call(self, prompt: str, system: str, tool: dict[str, Any]) -> dict[str, Any]:
         """Call the model with a single tool, forced, and return its parsed arguments.

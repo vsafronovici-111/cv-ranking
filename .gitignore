@@ -14,9 +14,13 @@ __pycache__/
 *.pyc
 
 
-# Local secrets/config (keep the .env.example templates tracked)
-config/local.env
+# Local secrets/config (config/local.env is tracked directly; keep prod's
+# .env.example template tracked instead of the real prod secrets)
 config/prod.env
+
+# Personal override on top of config/local.env (same idea as
+# .claude/settings.local.json below) - per-developer, never committed
+config/local.env.local
 
 # Docker volumes (keep the folder tracked via .gitkeep, ignore its contents)
 docker/volume/**

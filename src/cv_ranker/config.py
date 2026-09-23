@@ -9,6 +9,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _CONFIG_DIR = _REPO_ROOT / "config"
 
+# Shared local-dev defaults, plus an optional personal override file (not
+# tracked in git, silently skipped if absent) that wins on any key it sets —
+# same layering as this repo's own .claude/settings.json +
+# .claude/settings.local.json.
+_LOCAL_ENV_FILES = (str(_CONFIG_DIR / "local.env"), str(_CONFIG_DIR / "local.env.local"))
+
 
 class LLMSettings(BaseSettings):
     """Resolved LLM connection settings for a given environment.
@@ -40,7 +46,7 @@ class LocalLLMSettings(LLMSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="CV_RANKER_",
-        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file=_LOCAL_ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -48,7 +54,7 @@ class LocalLLMSettings(LLMSettings):
     base_url: str = "http://localhost:11434/v1"
     api_key: str = "ollama"  # Ollama ignores the key; the OpenAI SDK requires a non-empty value.
     model: str = "qwen3:14b"
-    timeout_seconds: int = 90
+    timeout_seconds: int = 150
 
 
 class ProdLLMSettings(LLMSettings):
@@ -85,7 +91,7 @@ class DBSettingsBase(BaseSettings):
 class LocalDBSettings(DBSettingsBase):
     model_config = SettingsConfigDict(
         env_prefix="CV_RANKER_DB_",
-        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file=_LOCAL_ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -127,7 +133,7 @@ class QdrantSettingsBase(BaseSettings):
 class LocalQdrantSettings(QdrantSettingsBase):
     model_config = SettingsConfigDict(
         env_prefix="CV_RANKER_QDRANT_",
-        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file=_LOCAL_ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -174,7 +180,7 @@ class LocalEmbeddingSettings(EmbeddingSettingsBase):
 
     model_config = SettingsConfigDict(
         env_prefix="CV_RANKER_EMBEDDING_",
-        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file=_LOCAL_ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -222,7 +228,7 @@ class LoggingSettingsBase(BaseSettings):
 class LocalLoggingSettings(LoggingSettingsBase):
     model_config = SettingsConfigDict(
         env_prefix="CV_RANKER_LOG_",
-        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file=_LOCAL_ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -262,7 +268,7 @@ class KafkaSettingsBase(BaseSettings):
 class LocalKafkaSettings(KafkaSettingsBase):
     model_config = SettingsConfigDict(
         env_prefix="CV_RANKER_KAFKA_",
-        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file=_LOCAL_ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -298,7 +304,7 @@ class RedisSettingsBase(BaseSettings):
 class LocalRedisSettings(RedisSettingsBase):
     model_config = SettingsConfigDict(
         env_prefix="CV_RANKER_REDIS_",
-        env_file=str(_CONFIG_DIR / "local.env"),
+        env_file=_LOCAL_ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore",
     )

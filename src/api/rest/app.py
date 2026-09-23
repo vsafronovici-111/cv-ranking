@@ -8,12 +8,22 @@ from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSock
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from cv_ranker.config import load_db_settings, load_kafka_settings, load_llm_settings, load_redis_settings
+from cv_ranker.config import (
+    load_db_settings,
+    load_embedding_settings,
+    load_kafka_settings,
+    load_llm_settings,
+    load_qdrant_settings,
+    load_redis_settings,
+)
 from cv_ranker.db import Conversation, CVStore, DBSettings, Message
+from cv_ranker.embedding_client import EmbeddingClient, EmbeddingClientConfig
 from cv_ranker.llm_client import LLMClient, LLMClientConfig
 from cv_ranker.logging_config import configure_logging
+from cv_ranker.qdrant_store import CVVectorStore, QdrantSettings
 from cv_ranker.websocket_manager import WSConnectionManager
 from kafka.consumer.chat_message_consumer import ChatMessageConsumer
+from kafka.consumer.recruiter_assistant import RecruiterAssistant
 from kafka.producer.chat_message_producer import ChatMessageProducer
 from redis_pubsub.consumer.redis_pubsub_consumer import RedisPubSubConsumer
 from redis_pubsub.producer.redis_pubsub_producer import RedisPubSubProducer
@@ -53,11 +63,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     )
 
+    embedding_settings = load_embedding_settings()
+    embedding_client = EmbeddingClient(
+        EmbeddingClientConfig(
+            base_url=embedding_settings.base_url,
+            api_key=embedding_settings.api_key,
+            model=embedding_settings.model,
+            timeout_seconds=embedding_settings.timeout_seconds,
+        )
+    )
+    qdrant_settings = load_qdrant_settings()
+    vector_store = CVVectorStore(QdrantSettings(url=qdrant_settings.url, api_key=qdrant_settings.api_key))
+    recruiter_assistant = RecruiterAssistant(
+        llm_client=llm_client, embedding_client=embedding_client, vector_store=vector_store
+    )
+
     consumer = ChatMessageConsumer(
         bootstrap_servers=kafka_bootstrap_servers,
         producer=producer,
         store=store,
-        llm_client=llm_client,
+        recruiter_assistant=recruiter_assistant,
         redis_producer=redis_producer,
     )
     consumer_task = asyncio.create_task(consumer.start())

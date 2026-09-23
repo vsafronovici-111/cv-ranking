@@ -31,10 +31,15 @@ Ollama must be running separately on the host (`ollama serve`) with a chat
 model (e.g. `qwen3:14b`) and an embedding model (e.g. `qwen3-embedding:4b`)
 pulled — see the README's Quick Start for full details.
 
-Real secrets/config live in `config/local.env` and `config/prod.env`
-(gitignored, copied from the `.env.example` templates). **Never edit these
-programmatically** — they hold live Qdrant/DB credentials; ask the developer
-to edit them by hand.
+`config/local.env` holds local dev config (Qdrant/DB credentials pointing at
+the local Docker stack) and is tracked directly in git — edit it in place,
+there's no `.env.example` template for it. An optional `config/local.env.local`
+(gitignored, not required to exist) layers on top for personal-only
+overrides — any key it sets wins over the same key in `config/local.env`
+(see `cv_ranker/config.py`'s `_LOCAL_ENV_FILES`). `config/prod.env` holds
+real production secrets, stays gitignored, and is copied from
+`config/prod.env.example`; **never edit `config/prod.env` programmatically**
+— ask the developer to edit it by hand.
 
 ## Architecture map
 

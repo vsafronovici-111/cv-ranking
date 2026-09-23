@@ -39,6 +39,10 @@ function reconcilePending(messages) {
   return last && last.sender === "user" ? insertSorted(withoutPending, pendingReplyFor(last)) : withoutPending;
 }
 
+// Matches the backend Kafka consumer's own fixed retry backoff
+// (`_RETRY_BACKOFF_SECONDS` in chat_message_consumer.py).
+const RECONNECT_DELAY_MS = 1000;
+
 function Chat({ conversationId }) {
   const [messages, setMessages] = useState([]);
 
@@ -60,14 +64,35 @@ function Chat({ conversationId }) {
   useEffect(() => {
     if (!conversationId) return;
 
-    const socket = new WebSocket(`${WS_URL}/conversations/${conversationId}`);
-    socket.onmessage = (event) => {
-      const payload = JSON.parse(event.data);
-      const incoming = toChatMessage(payload);
-      setMessages((prev) => reconcilePending(upsertMessage(prev, incoming)));
+    let disposed = false;
+    let socket;
+    let reconnectTimer;
+
+    const connect = () => {
+      socket = new WebSocket(`${WS_URL}/conversations/${conversationId}`);
+
+      socket.onmessage = (event) => {
+        const payload = JSON.parse(event.data);
+        const incoming = toChatMessage(payload);
+        setMessages((prev) => reconcilePending(upsertMessage(prev, incoming)));
+      };
+
+      // Fires on a clean close, a network drop, and a failed handshake
+      // (onerror always precedes onclose) alike, so reconnecting here
+      // covers a backend restart without a separate onerror handler.
+      socket.onclose = () => {
+        if (disposed) return;
+        reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
+      };
     };
 
-    return () => socket.close();
+    connect();
+
+    return () => {
+      disposed = true;
+      clearTimeout(reconnectTimer);
+      socket.close();
+    };
   }, [conversationId]);
 
   const sendMessage = useCallback(

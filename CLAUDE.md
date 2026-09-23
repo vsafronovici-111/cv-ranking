@@ -16,9 +16,11 @@ working in this repo with Claude Code.
     (non-blocking) and won't surface findings it can't auto-fix
     (e.g. `BLE001`/`SLF001` need a `# noqa` comment, not a formatter).
   - A `PreToolUse` hook blocks `Write`/`Edit`/`MultiEdit` on
-    `config/local.env` and `config/prod.env` (real, gitignored secrets). If
-    you need one of these changed, ask the developer to edit it — don't try
-    to work around the block.
+    `config/prod.env` (real, gitignored production secrets). If you need it
+    changed, ask the developer to edit it — don't try to work around the
+    block. `config/local.env` is tracked in git and fine to edit directly;
+    so is the optional, gitignored `config/local.env.local` personal
+    override layered on top of it.
 - `.claude/settings.local.json` is per-developer and gitignored; don't move
   shared config into it.
 

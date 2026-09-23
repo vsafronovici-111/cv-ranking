@@ -10,7 +10,7 @@ from typing import Any
 from aiokafka import AIOKafkaConsumer
 
 from cv_ranker.db import CVStore
-from cv_ranker.llm_client import LLMClient
+from kafka.consumer.recruiter_assistant import RecruiterAssistant
 from kafka.producer.chat_message_producer import CHAT_MESSAGES_TOPIC, ChatMessageProducer
 from redis_pubsub.producer.redis_pubsub_producer import RedisPubSubProducer
 
@@ -42,7 +42,7 @@ class ChatMessageConsumer:
         bootstrap_servers: str,
         producer: ChatMessageProducer,
         store: CVStore,
-        llm_client: LLMClient,
+        recruiter_assistant: RecruiterAssistant,
         redis_producer: RedisPubSubProducer,
     ):
         self.consumer = AIOKafkaConsumer(
@@ -53,7 +53,7 @@ class ChatMessageConsumer:
         )
         self.producer = producer
         self._store = store
-        self._llm_client = llm_client
+        self._recruiter_assistant = recruiter_assistant
         self._redis_producer = redis_producer
         self.running = True
 
@@ -171,7 +171,7 @@ class ChatMessageConsumer:
             )
             chat_messages = [{"role": message.role, "content": message.content} for message in history]
             chat_messages.append({"role": payload["role"], "content": payload["content"]})
-            response = await asyncio.to_thread(self._llm_client.generate_chat, chat_messages)
+            response = await asyncio.to_thread(self._recruiter_assistant.generate_reply, chat_messages)
             await self.producer.publish_assistant_reply(payload["conversation_id"], response)
             return response
 

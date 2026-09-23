@@ -10,7 +10,7 @@ cd docker
 docker compose up -d
 ```
 
-Default connection (matches `config/local.env.example`'s `CV_RANKER_DB_DSN`):
+Default connection (matches `config/local.env`'s `CV_RANKER_DB_DSN`):
 
 ```
 postgresql://postgres:postgres@localhost:5432/cvranker
@@ -49,7 +49,10 @@ gRPC:      localhost:6334
 Authentication: the container requires an API key (`QDRANT__SERVICE__API_KEY`
 in `docker-compose.yml`), enforced identically on **both** the REST and gRPC
 interfaces — matches `CV_RANKER_QDRANT_API_KEY` in `config/local.env`.
-Generate your own with `openssl rand -hex 32` and keep both files in sync.
+Generate your own with `openssl rand -hex 32` and keep both files in sync
+(or put your personal key in `config/local.env.local` instead, so it never
+touches the shared, committed `config/local.env` — see the main
+[README](../README.md#configuration-local-vs-prod)).
 
 Quick health check (unauthenticated — `/healthz` is exempt from the API key):
 
@@ -82,7 +85,7 @@ Kafka UI: http://localhost:8081
 ```
 
 Matches the default `CV_RANKER_KAFKA_BOOTSTRAP_SERVERS` in
-`config/local.env.example`. The REST API publishes to (and
+`config/local.env`. The REST API publishes to (and
 `src/kafka/consumer/chat_message_consumer.py` consumes from) the `chat-messages`
 topic; topics
 are auto-created on first publish, no manual setup needed.
@@ -105,7 +108,7 @@ Redis:           localhost:6379
 Redis Commander: http://localhost:8082
 ```
 
-Matches the default `CV_RANKER_REDIS_URL` in `config/local.env.example`. The
+Matches the default `CV_RANKER_REDIS_URL` in `config/local.env`. The
 consumer publishes to (and `src/redis_pubsub/consumer/redis_pubsub_consumer.py`
 subscribes to) the `ai-model-response` channel after an assistant reply is
 persisted in `_on_ai_model_response` (`src/kafka/consumer/chat_message_consumer.py`);

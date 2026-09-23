@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=$(python3 -c \"import sys,json;d=json.load(sys.stdin);print(d.get('tool_input',{}).get('file_path','') or '')\" 2>/dev/null); case \"$f\" in */config/local.env|*/config/prod.env|config/local.env|config/prod.env) printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"config/local.env and config/prod.env hold real secrets (Qdrant/DB credentials) and are gitignored - edit them manually, not via an agent tool call.\"}}' ;; esac",
+            "command": "f=$(python3 -c \"import sys,json;d=json.load(sys.stdin);print(d.get('tool_input',{}).get('file_path','') or '')\" 2>/dev/null); case \"$f\" in */config/prod.env|config/prod.env) printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"config/prod.env holds real production secrets and is gitignored - edit it manually, not via an agent tool call.\"}}' ;; esac",
             "statusMessage": "Checking for edits to secret config files..."
           }
         ]

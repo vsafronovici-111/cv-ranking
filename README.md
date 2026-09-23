@@ -48,7 +48,7 @@ docker compose up -d
 This starts Postgres 16 with the `cvranker` database already created,
 persisting data to `docker/volume/postgres` (gitignored) so it survives
 container restarts. It matches the default `CV_RANKER_DB_DSN` in
-`config/local.env.example`: `postgresql://postgres:postgres@localhost:5432/cvranker`.
+`config/local.env`: `postgresql://postgres:postgres@localhost:5432/cvranker`.
 
 Alternatively, use any local/existing Postgres install — just create the
 database yourself:
@@ -71,7 +71,7 @@ single-node Kafka broker (KRaft mode, no ZooKeeper) on `localhost:9092`, plus
 [Kafka UI](https://github.com/provectus/kafka-ui) on
 [http://localhost:8081](http://localhost:8081) for browsing topics/messages.
 It matches the default `CV_RANKER_KAFKA_BOOTSTRAP_SERVERS` in
-`config/local.env.example`.
+`config/local.env`.
 
 ### Redis setup
 
@@ -82,7 +82,7 @@ up -d` (same compose file as Postgres/Qdrant/Kafka) also starts Redis on
 `localhost:6379`, plus
 [Redis Commander](https://github.com/joeferner/redis-commander) on
 [http://localhost:8082](http://localhost:8082) for browsing keys/channels.
-It matches the default `CV_RANKER_REDIS_URL` in `config/local.env.example`.
+It matches the default `CV_RANKER_REDIS_URL` in `config/local.env`.
 
 ## Configuration (local vs prod)
 
@@ -98,7 +98,7 @@ Which **environment profile** (`local` or `prod`) is picked, in order:
 Once the environment is picked, pydantic-settings resolves each field with this priority:
 
 1. Environment variables (e.g. `CV_RANKER_MODEL`)
-2. The matching `config/<env>.env` dotenv file, if present (`config/local.env` or `config/prod.env`, auto-loaded — no manual `source` needed)
+2. For `local`: `config/local.env`, then `config/local.env.local` if present (see below) — both auto-loaded, no manual `source` needed. For `prod`: `config/prod.env`.
 3. The field defaults below
 
 | Env var                      | Local default               | Prod default                    |
@@ -115,12 +115,19 @@ Once the environment is picked, pydantic-settings resolves each field with this 
 | `CV_RANKER_LOG_LEVEL`         | `DEBUG`                      | `INFO`                           |
 | `CV_RANKER_KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092`       | (override in `config/prod.env`)  |
 
-Example config files are provided:
+[`config/local.env`](config/local.env) is tracked directly in git and
+already populated with working local-dev defaults (Ollama, the local Docker
+Postgres/Qdrant/Kafka/Redis stack) — edit it in place for changes you want
+everyone to share, no `.env.example` template needed.
 
-- [`config/local.env.example`](config/local.env.example)
-- [`config/prod.env.example`](config/prod.env.example)
+For personal-only overrides (e.g. a different local model, your own Qdrant
+key) without touching the shared file, create `config/local.env.local`: it's
+gitignored, optional, and any key it sets wins over the same key in
+`config/local.env` — same layering as this repo's own
+`.claude/settings.json` + `.claude/settings.local.json`.
 
-Copy and source the one you need (the real `config/local.env` / `config/prod.env` files are gitignored):
+`config/prod.env` holds real production secrets and stays gitignored; copy
+it from [`config/prod.env.example`](config/prod.env.example):
 
 ```bash
 cp config/prod.env.example config/prod.env
@@ -357,10 +364,19 @@ producer, started once at API startup and stopped at shutdown — see
 `kafka.consumer.chat_message_consumer.ChatMessageConsumer` subscribes to `chat-messages`:
 
 - On a `role: "user"` event, it loads that conversation's earlier messages,
-  calls the LLM for a reply (idempotently, tracked via the `message_responses`
-  table keyed by `message.id`), and publishes the reply back to
-  `chat-messages` as a `role: "assistant"` event.
+  calls `kafka.consumer.recruiter_assistant.RecruiterAssistant` for a reply
+  (idempotently, tracked via the `message_responses` table keyed by
+  `message.id`), and publishes the reply back to `chat-messages` as a
+  `role: "assistant"` event.
 - On a `role: "assistant"` event, it persists it as a new row in `messages`.
+
+`RecruiterAssistant` prepends a recruiter-persona `role: "system"` message to
+every conversation before calling the LLM, and gives the model an optional
+`search_candidates` tool: when the user asks it to find/recommend/rank
+candidates, the model can call that tool instead of guessing, which embeds
+the given criteria and searches Qdrant the same way `cv-ranker find` does (see
+[Semantic search (`find`)](#semantic-search-find) below), and the model's
+final reply is grounded in those results.
 
 Both of the above retry up to 3 total attempts (1-second backoff between
 each) before giving up. On the 3rd failure, the original event is published
